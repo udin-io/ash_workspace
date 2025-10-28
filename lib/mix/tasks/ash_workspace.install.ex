@@ -762,6 +762,7 @@ if Code.ensure_loaded?(Igniter) do
       change AshAuthentication.Strategy.Password.HashPasswordChange
       change AshAuthentication.GenerateTokenChange
       change #{inspect(domain_module)}.Changes.CreateDefaultWorkspace
+      change #{inspect(domain_module)}.Changes.MakeOwnerRole
 
       validate AshAuthentication.Strategy.Password.PasswordConfirmationValidation
 
@@ -916,12 +917,13 @@ if Code.ensure_loaded?(Igniter) do
   end
 
   defp generate_from_template(igniter, template_path, target_path, module_prefix, otp_app) do
+    # Mix.shell().info("generate #{target_path} from #{template_path}")
     # Skip standard ash_authentication_phoenix files if they already exist
     # (users may have customized them or installed ash_authentication_phoenix separately)
     skip_if_exists? = String.contains?(target_path, [
       "/controllers/auth_controller.ex",
-      "/live_user_auth.ex",
-      "/auth_overrides.ex"
+      "/ash_workspace_live_user_auth.ex",
+      "/ash_workspace_auth_overrides.ex"
     ])
 
     if skip_if_exists? && File.exists?(target_path) do
@@ -963,14 +965,19 @@ if Code.ensure_loaded?(Igniter) do
     template_dir = Path.join([__DIR__, "..", "..", "..", "priv", "templates"])
 
     igniter
-    |> generate_from_template("#{template_dir}/live_user_auth.ex", "lib/#{otp_app}_web/live_user_auth.ex", module_prefix, otp_app)
-    |> generate_from_template("#{template_dir}/auth_overrides.ex", "lib/#{otp_app}_web/auth_overrides.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/ash_workspace_live_user_auth.ex", "lib/#{otp_app}_web/ash_workspace_live_user_auth.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/ash_workspace_auth_overrides.ex", "lib/#{otp_app}_web/ash_workspace_auth_overrides.ex", module_prefix, otp_app)
     # Generate email sender modules
     |> generate_from_template("#{template_dir}/senders/send_new_user_confirmation_email.ex", "lib/#{otp_app}/accounts/user/senders/send_new_user_confirmation_email.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/senders/send_password_reset_email.ex", "lib/#{otp_app}/accounts/user/senders/send_password_reset_email.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/senders/send_invitation_email.ex", "lib/#{otp_app}/accounts/invitation/senders/send_invitation_email.ex", module_prefix, otp_app)
     # Generate workspace creation change module
     |> generate_from_template("#{template_dir}/changes/create_default_workspace.ex", "lib/#{otp_app}/accounts/changes/create_default_workspace.ex", module_prefix, otp_app)
+    # Generate owner role change module
+    |> generate_from_template("#{template_dir}/changes/make_owner_role.ex", "lib/#{otp_app}/accounts/changes/make_owner_role.ex", module_prefix, otp_app)
+    # validators
+    |> generate_from_template("#{template_dir}/validators/email_uniqueness_in_workspace.ex", "lib/#{otp_app}/accounts/validators/email_uniqueness_in_workspace.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/validators/strong_password_validation.ex", "lib/#{otp_app}/accounts/validators/strong_password_validation.ex", module_prefix, otp_app)
   end
 
   defp update_router(igniter) do
@@ -986,32 +993,32 @@ if Code.ensure_loaded?(Igniter) do
       "/",
       """
       pipe_through :browser
+
       # AshWorkspace authentication routes - custom registration creates workspace
       ash_authentication_live_session :guest,
-        on_mount: [{#{inspect(web_module)}.LiveUserAuth, :live_no_user}] do
+        on_mount: [{#{inspect(web_module)}.AshWorkspaceLiveUserAuth, :live_no_user}] do
         live "/register", AuthLive.Register
         live "/sign-in", AuthLive.SignIn
         live "/reset", AuthLive.Reset
       end
       """,
-      with_pipelines: [:browser],
       arg2: web_module,
       router: router
     )
-    # Add team management route (requires admin role)
+    # Add team management route (requires admin or owner role)
     |> Igniter.Libs.Phoenix.add_scope(
       "/",
       """
-      # Team management - requires admin role
+      pipe_through :browser
+      # Team management - requires admin or owner role
       ash_authentication_live_session :team_admin,
         on_mount: [
-          {#{inspect(web_module)}.LiveUserAuth, :live_user_required},
-          {#{inspect(web_module)}.LiveUserAuth, :admin_only}
+          {#{inspect(web_module)}.AshWorkspaceLiveUserAuth, :live_user_required},
+          {#{inspect(web_module)}.AshWorkspaceLiveUserAuth, :admin_or_owner}
         ] do
         live "/team", TeamLive.Index
       end
       """,
-      with_pipelines: [:browser],
       arg2: web_module,
       router: router
     )
@@ -1019,11 +1026,12 @@ if Code.ensure_loaded?(Igniter) do
     |> Igniter.Libs.Phoenix.add_scope(
       "/invitation",
       """
+      pipe_through :browser
+
       get "/accept/:email/:token", InvitationController, :accept
       live "/accept/register/:email/:token", InvitationAcceptanceAuthLive.RegisterIndex, :index
       live "/accept/sign-in/:email/:token", InvitationAcceptanceAuthLive.SignInIndex, :index
       """,
-      with_pipelines: [:browser],
       arg2: web_module,
       router: router
     )
@@ -1031,10 +1039,11 @@ if Code.ensure_loaded?(Igniter) do
     |> Igniter.Libs.Phoenix.add_scope(
       "/auth",
       """
+      pipe_through :browser
+
       get "/success", AuthController, :success
       get "/failure", AuthController, :failure
       """,
-      with_pipelines: [:browser],
       arg2: web_module,
       router: router
     )
@@ -1082,7 +1091,7 @@ if Code.ensure_loaded?(Igniter) do
     - ✅ LiveView files for authentication (register, sign-in)
     - ✅ LiveView files for invitation acceptance
     - ✅ Auth and Invitation controllers
-    - ✅ Helper modules (LiveUserAuth, AuthOverrides)
+    - ✅ Helper modules (AshWorkspaceLiveUserAuth, AshFrameworkAuthOverrides)
     - ✅ Router routes for auth and invitations
     - ✅ Configuration file
 

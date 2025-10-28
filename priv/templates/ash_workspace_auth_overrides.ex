@@ -1,4 +1,4 @@
-defmodule __MODULE_PREFIX__Web.AuthOverrides do
+defmodule __MODULE_PREFIX__Web.AshWorkspaceAuthOverrides do
   use AshAuthentication.Phoenix.Overrides
 
   # configure your UI overrides here

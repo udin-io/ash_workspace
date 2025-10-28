@@ -8,7 +8,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   use __MODULE_PREFIX__Web, :live_view
   alias __MODULE_PREFIX__.Accounts
   import __MODULE_PREFIX__Web.TeamLive.Components
-  on_mount {__MODULE_PREFIX__Web.LiveUserAuth, :live_user_required}
+  on_mount {__MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth, :live_user_required}
 
   def render(assigns) do
     ~H"""
