@@ -599,6 +599,8 @@ if Code.ensure_loaded?(Igniter) do
     |> Ash.Resource.Igniter.add_new_attribute(user_module, :confirmed_at, """
     attribute :confirmed_at, :utc_datetime_usec
     """)
+    # Ensure :owner role is in role attribute constraints
+    |> add_owner_role_to_constraints(user_module)
     # Add code interfaces
     |> add_code_interface(user_module)
     # Add workspace relationships
@@ -625,6 +627,149 @@ if Code.ensure_loaded?(Igniter) do
     # Add policies for password authentication actions
     |> add_password_policies(user_module)
     |> tap(fn _ -> Mix.shell().info("  ✅ User resource updated successfully") end)
+  end
+
+  # Add :owner to the role attribute constraints if a role attribute exists
+  defp add_owner_role_to_constraints(igniter, user_module) do
+    Mix.shell().info("  → Ensuring :owner role is in role attribute constraints")
+
+    try do
+      Igniter.Project.Module.find_and_update_module!(igniter, user_module, fn zipper ->
+        # Debug: Let's see what nodes we can find
+        all_attributes =
+          Sourceror.Zipper.traverse(zipper, [], fn z, acc ->
+            node = Sourceror.Zipper.node(z)
+            case node do
+              {:attribute, _, [name | _]} ->
+                {z, [{name, node} | acc]}
+              _ ->
+                {z, acc}
+            end
+          end)
+          |> elem(1)
+
+        # Mix.shell().info("    Debug: Found attributes: #{inspect(Enum.map(all_attributes, fn {name, _} -> name end))}")
+
+        # Look for attribute :role in the attributes block
+        case Igniter.Code.Common.move_to(zipper, fn z ->
+          node = Sourceror.Zipper.node(z)
+          case node do
+            {:attribute, _, [{:__block__, _, [:role]} | _]} ->
+              Mix.shell().info("    Debug: Found role attribute!")
+              true
+            {:attribute, _, [:role | _]} ->
+              Mix.shell().info("    Debug: Found role attribute (simple form)!")
+              true
+            _ ->
+              false
+          end
+        end) do
+          {:ok, attr_zipper} ->
+            Mix.shell().info("    Debug: Successfully moved to role attribute")
+            # Found role attribute, navigate into its do block
+            case Igniter.Code.Common.move_to_do_block(attr_zipper) do
+              {:ok, do_block_zipper} ->
+                Mix.shell().info("    Debug: Found do block")
+                # Look for constraints call
+                case Igniter.Code.Common.move_to(do_block_zipper, fn z ->
+                  node = Sourceror.Zipper.node(z)
+                  match?({:constraints, _, _}, node)
+                end) do
+                  {:ok, constraints_zipper} ->
+                    Mix.shell().info("    Debug: Found constraints")
+                    # Found constraints, try to update the one_of list
+                    node = Sourceror.Zipper.node(constraints_zipper)
+                    # Mix.shell().info("    Debug: Constraints node: #{inspect(node)}")
+                    case node do
+                      # Handle the wrapped format with __block__
+                      {:constraints, meta, [[{{:__block__, _, [:one_of]}, {:__block__, list_meta, [list]}}]]} when is_list(list) ->
+                        # Extract the actual atom values from the list
+                        current_roles = Enum.map(list, fn
+                          {:__block__, _, [role]} -> role
+                          role -> role
+                        end)
+
+                        if :owner in current_roles do
+                          Mix.shell().info("    ✓ :owner already in role constraints")
+                          {:ok, zipper}
+                        else
+                          Mix.shell().info("    ✓ Adding :owner to role constraints")
+                          # Add :owner wrapped in __block__ to match the format
+                          new_item = {:__block__, [trailing_comments: [], leading_comments: [], line: 137, column: 50], [:owner]}
+                          new_list = list ++ [new_item]
+                          new_node = {:constraints, meta, [[{{:__block__, [trailing_comments: [], leading_comments: [], format: :keyword, line: 137, column: 19], [:one_of]}, {:__block__, list_meta, [new_list]}}]]}
+                          updated_zipper = Sourceror.Zipper.replace(constraints_zipper, new_node)
+                          {:ok, Sourceror.Zipper.top(updated_zipper)}
+                        end
+                      # Simple format without __block__ wrappers
+                      {:constraints, meta, [[{:one_of, list}]]} when is_list(list) ->
+                        if :owner in list do
+                          Mix.shell().info("    ✓ :owner already in role constraints")
+                          {:ok, zipper}
+                        else
+                          Mix.shell().info("    ✓ Adding :owner to role constraints")
+                          new_list = list ++ [:owner]
+                          new_node = {:constraints, meta, [[{:one_of, new_list}]]}
+                          updated_zipper = Sourceror.Zipper.replace(constraints_zipper, new_node)
+                          {:ok, Sourceror.Zipper.top(updated_zipper)}
+                        end
+                      _ ->
+                        Mix.shell().info("    ℹ Unexpected constraints format")
+                        {:warning, zipper}
+                    end
+                  _ ->
+                    Mix.shell().info("    ℹ No constraints found on role attribute")
+                    {:warning, zipper}
+                end
+              _ ->
+                Mix.shell().info("    ℹ Role attribute has no do block")
+                {:warning, zipper}
+            end
+          _ ->
+            Mix.shell().info("    ℹ No role attribute found")
+            {:warning, zipper}
+        end
+      end)
+      |> then(fn updated_igniter ->
+        # Check if we should show a warning
+        case updated_igniter do
+          %{assigns: %{show_role_warning: true}} ->
+            add_role_constraint_warning(updated_igniter)
+          _ ->
+            updated_igniter
+        end
+      end)
+    rescue
+      e ->
+        Mix.shell().info("    ⚠ Error updating role constraints: #{inspect(e)}")
+        add_role_constraint_warning(igniter)
+    end
+  end
+
+  defp add_role_constraint_warning(igniter) do
+    Igniter.add_warning(igniter, """
+    ⚠️  IMPORTANT: Please update your User resource role attribute!
+
+    The MakeOwnerRole change requires :owner to be added to the role attribute constraints.
+
+    Please update your User resource (lib/*/accounts/user.ex):
+
+    BEFORE:
+      attribute :role, :atom do
+        constraints one_of: [:admin, :user, :chat_only]
+        default :user
+        allow_nil? false
+      end
+
+    AFTER:
+      attribute :role, :atom do
+        constraints one_of: [:admin, :user, :chat_only, :owner]
+        default :user
+        allow_nil? false
+      end
+
+    Without this change, user registration will fail silently.
+    """)
   end
 
   # Add code_interface block with helpers for User lookups
