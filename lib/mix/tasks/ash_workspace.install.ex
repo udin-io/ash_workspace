@@ -52,6 +52,7 @@ if Code.ensure_loaded?(Igniter) do
     |> generate_invitation_resource()
     |> update_domain_module()
     |> update_user_resource()
+    |> generate_ui_components()
     |> generate_liveview_files()
     |> generate_controller_files()
     |> generate_helper_modules()
@@ -876,6 +877,22 @@ if Code.ensure_loaded?(Igniter) do
     end)
   end
 
+  defp generate_ui_components(igniter) do
+    otp_app = Igniter.Project.Application.app_name(igniter)
+    module_prefix = Macro.camelize(to_string(otp_app))
+    template_dir = Path.join([__DIR__, "..", "..", "..", "priv", "templates"])
+
+    # Generate AshWorkspace-specific components needed by team LiveView
+    # These are placed in a separate namespace to avoid conflicts with existing components
+    igniter
+    |> generate_from_template(
+      "#{template_dir}/components/ash_workspace/core_components.ex",
+      "lib/#{otp_app}_web/components/ash_workspace/core_components.ex",
+      module_prefix,
+      otp_app
+    )
+  end
+
   defp generate_liveview_files(igniter) do
     otp_app = Igniter.Project.Application.app_name(igniter)
     module_prefix = Macro.camelize(to_string(otp_app))
@@ -887,11 +904,15 @@ if Code.ensure_loaded?(Igniter) do
     igniter
     |> generate_from_template("#{template_dir}/live/auth_live/register.ex", "lib/#{otp_app}_web/live/auth_live/register.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/live/auth_live/sign_in.ex", "lib/#{otp_app}_web/live/auth_live/sign_in.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/live/auth_live/reset.ex", "lib/#{otp_app}_web/live/auth_live/reset.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/live/auth_live/components.ex", "lib/#{otp_app}_web/live/auth_live/components.ex", module_prefix, otp_app)
     # Generate invitation acceptance LiveViews
     |> generate_from_template("#{template_dir}/live/invitation_acceptance_live/register_index.ex", "lib/#{otp_app}_web/live/invitation_acceptance_live/register_index.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/live/invitation_acceptance_live/sign_in_index.ex", "lib/#{otp_app}_web/live/invitation_acceptance_live/sign_in_index.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/live/invitation_acceptance_live/component.ex", "lib/#{otp_app}_web/live/invitation_acceptance_live/component.ex", module_prefix, otp_app)
+    # Generate team management LiveViews (for admins)
+    |> generate_from_template("#{template_dir}/live/team_live/index.ex", "lib/#{otp_app}_web/live/team_live/index.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/live/team_live/components.ex", "lib/#{otp_app}_web/live/team_live/components.ex", module_prefix, otp_app)
   end
 
   defp generate_from_template(igniter, template_path, target_path, module_prefix, otp_app) do
@@ -947,123 +968,107 @@ if Code.ensure_loaded?(Igniter) do
     # Generate email sender modules
     |> generate_from_template("#{template_dir}/senders/send_new_user_confirmation_email.ex", "lib/#{otp_app}/accounts/user/senders/send_new_user_confirmation_email.ex", module_prefix, otp_app)
     |> generate_from_template("#{template_dir}/senders/send_password_reset_email.ex", "lib/#{otp_app}/accounts/user/senders/send_password_reset_email.ex", module_prefix, otp_app)
+    |> generate_from_template("#{template_dir}/senders/send_invitation_email.ex", "lib/#{otp_app}/accounts/invitation/senders/send_invitation_email.ex", module_prefix, otp_app)
     # Generate workspace creation change module
     |> generate_from_template("#{template_dir}/changes/create_default_workspace.ex", "lib/#{otp_app}/accounts/changes/create_default_workspace.ex", module_prefix, otp_app)
   end
 
   defp update_router(igniter) do
-    otp_app = Igniter.Project.Application.app_name(igniter)
-    module_prefix = Macro.camelize(to_string(otp_app))
-    router_path = "lib/#{otp_app}_web/router.ex"
+    # Get the web module using Igniter's helper (e.g., RoboadvisorWeb, not Roboadvisor.Web)
+    web_module = Igniter.Libs.Phoenix.web_module(igniter)
 
-    # Custom registration route to add BEFORE ash_authentication routes
-    custom_register_scope = """
-      # AshWorkspace custom registration route - placed before ash_authentication routes
-      # to ensure custom workspace registration is used for new users
-      scope "/", #{module_prefix}Web do
-        pipe_through :browser
+    # Get the router using Igniter's helper
+    {igniter, router} = Igniter.Libs.Phoenix.select_router(igniter)
 
-        live "/register", AuthLive.Register, :index
-      end
-
-    """
-
-    # Other routes to add at the end
-    other_routes = """
-    # Invitation acceptance routes
-    scope "/invitation", #{module_prefix}Web do
+    igniter
+    # Add guest authentication routes (register, sign-in, reset)
+    |> Igniter.Libs.Phoenix.add_scope(
+      "/",
+      """
       pipe_through :browser
-
+      # AshWorkspace authentication routes - custom registration creates workspace
+      ash_authentication_live_session :guest,
+        on_mount: [{#{inspect(web_module)}.LiveUserAuth, :live_no_user}] do
+        live "/register", AuthLive.Register
+        live "/sign-in", AuthLive.SignIn
+        live "/reset", AuthLive.Reset
+      end
+      """,
+      with_pipelines: [:browser],
+      arg2: web_module,
+      router: router
+    )
+    # Add team management route (requires admin role)
+    |> Igniter.Libs.Phoenix.add_scope(
+      "/",
+      """
+      # Team management - requires admin role
+      ash_authentication_live_session :team_admin,
+        on_mount: [
+          {#{inspect(web_module)}.LiveUserAuth, :live_user_required},
+          {#{inspect(web_module)}.LiveUserAuth, :admin_only}
+        ] do
+        live "/team", TeamLive.Index
+      end
+      """,
+      with_pipelines: [:browser],
+      arg2: web_module,
+      router: router
+    )
+    # Add invitation acceptance routes
+    |> Igniter.Libs.Phoenix.add_scope(
+      "/invitation",
+      """
       get "/accept/:email/:token", InvitationController, :accept
       live "/accept/register/:email/:token", InvitationAcceptanceAuthLive.RegisterIndex, :index
       live "/accept/sign-in/:email/:token", InvitationAcceptanceAuthLive.SignInIndex, :index
-    end
-
-    # Auth callback routes
-    scope "/auth", #{module_prefix}Web do
-      pipe_through :browser
-
+      """,
+      with_pipelines: [:browser],
+      arg2: web_module,
+      router: router
+    )
+    # Add auth callback routes
+    |> Igniter.Libs.Phoenix.add_scope(
+      "/auth",
+      """
       get "/success", AuthController, :success
       get "/failure", AuthController, :failure
-    end
-    """
-
-    igniter
-    |> Igniter.update_file(router_path, fn file_source ->
-      source = Rewrite.Source.get(file_source, :content)
-
-      # Step 1: Remove register_path from sign_in_route if it exists
-      source =
-        if String.contains?(source, "sign_in_route") and String.contains?(source, "register_path:") do
-          # Remove the register_path line entirely
-          source
-          |> String.replace(~r/\s*register_path:\s*"[^"]*",?\s*\n/, "")
-        else
-          source
-        end
-
-      # Step 2: Find where to insert custom register route - before any scope that contains sign_in_route or auth_routes
-      source =
-        case find_insertion_point_for_register_route(source) do
-          {:ok, insertion_pos} ->
-            String.slice(source, 0, insertion_pos) <>
-              custom_register_scope <>
-              String.slice(source, insertion_pos..-1//1)
-
-          :error ->
-            # If we can't find a good spot, add after last "end" before module close
-            source <> "\n" <> custom_register_scope
-        end
-
-      # Step 3: Add other routes at the end (before final "end")
-      source = String.replace(source, ~r/end\s*$/, "#{other_routes}end")
-
-      Rewrite.Source.update(file_source, :content, source)
-    end)
+      """,
+      with_pipelines: [:browser],
+      arg2: web_module,
+      router: router
+    )
+    # Add warning about potential route conflicts
+    |> add_route_conflict_warning()
   end
 
-  defp find_insertion_point_for_register_route(source) do
-    # Find the scope that contains auth_routes or sign_in_route
-    # We want to insert our custom route BEFORE this scope
-    lines = String.split(source, "\n")
+  defp add_route_conflict_warning(igniter) do
+    Igniter.add_warning(igniter, """
 
-    case Enum.find_index(lines, fn line ->
-           String.contains?(line, ["sign_in_route", "auth_routes AuthController"]) ||
-             String.contains?(line, ["magic_sign_in_route"])
-         end) do
-      nil ->
-        :error
+    ⚠️  IMPORTANT: Please check your router for duplicate routes!
 
-      line_index ->
-        # Walk backwards to find the "scope" declaration for this line
-        scope_index =
-          Enum.slice(lines, 0..line_index)
-          |> Enum.reverse()
-          |> Enum.find_index(fn line ->
-            String.match?(line, ~r/^\s*scope\s+"\//)
-          end)
+    AshWorkspace has added the following routes:
+    - GET  /register (custom workspace registration)
+    - GET  /sign-in  (authentication)
+    - GET  /reset    (password reset)
+    - GET  /team     (admin-only team management)
 
-        case scope_index do
-          nil ->
-            :error
+    If you have existing routes for /register, /sign-in, or /reset, you may see
+    route conflicts. Please review your router and:
 
-          rev_index ->
-            # Convert back to forward index
-            actual_scope_index = line_index - rev_index
+    1. Remove or comment out the `register_path:` option from `sign_in_route`
+    2. Remove or comment out any duplicate LiveView routes for the above paths
+    3. Ensure only ONE route exists for each path
 
-            # Count characters up to this line
-            char_pos =
-              lines
-              |> Enum.slice(0..(actual_scope_index - 1))
-              |> Enum.join("\n")
-              |> String.length()
+    Example of what to remove:
+      # BEFORE:
+      sign_in_route register_path: "/register", reset_path: "/reset", ...
 
-            # Add 1 for the newline if not at the beginning
-            char_pos = if char_pos > 0, do: char_pos + 1, else: char_pos
+      # AFTER (remove register_path since we provide custom registration):
+      sign_in_route reset_path: "/reset", ...
 
-            {:ok, char_pos}
-        end
-    end
+    Run `mix phx.routes` to verify your routes are correct.
+    """)
   end
 
   defp print_success_message(igniter) do
