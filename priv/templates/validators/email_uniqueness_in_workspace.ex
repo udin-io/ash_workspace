@@ -35,7 +35,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
   end
 
   defp email_exists_in_workspace?(email, workspace_id) do
-    case __MODULE_PREFIX__Web.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
+    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
       {:ok, workspace_users} ->
         workspace_users
         |> Enum.map(&Ash.load!(&1, :user))
@@ -47,7 +47,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
   end
 
   defp pending_invitation_exists?(email) do
-    case __MODULE_PREFIX__Web.Accounts.get_pending_invitations_by_email(email) do
+    case __MODULE_PREFIX__.Accounts.get_pending_invitations_by_email(email) do
       {:ok, _inv} -> true
       _ -> false
     end

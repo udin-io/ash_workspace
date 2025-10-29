@@ -94,272 +94,55 @@ if Code.ensure_loaded?(Igniter) do
 
   defp generate_workspace_resource(igniter) do
     domain_module = igniter.assigns.domain_module
-    repo_module = igniter.assigns.repo_module
     otp_app = Igniter.Project.Application.app_name(igniter)
+    module_prefix = Macro.camelize(to_string(otp_app))
+    template_dir = Path.join([__DIR__, "..", "..", "..", "priv", "templates"])
 
     workspace_module = Module.concat([domain_module, Workspace])
-    workspace_user_module = Module.concat([domain_module, WorkspaceUser])
-    invitation_module = Module.concat([domain_module, Invitation])
-    user_module = Module.concat([domain_module, User])
-
-    code = """
-    use Ash.Resource,
-      otp_app: #{inspect(otp_app)},
-      domain: #{inspect(domain_module)},
-      data_layer: AshPostgres.DataLayer
-
-    postgres do
-      table "workspaces"
-      repo #{inspect(repo_module)}
-    end
-
-    actions do
-      defaults [:read, :destroy, create: [:name], update: [:name]]
-    end
-
-    attributes do
-      uuid_primary_key :id
-
-      attribute :name, :string do
-        allow_nil? false
-        public? true
-      end
-
-      timestamps()
-    end
-
-    relationships do
-      has_many :workspace_users, #{inspect(workspace_user_module)}
-      has_many :invitations, #{inspect(invitation_module)}
-
-      many_to_many :users, #{inspect(user_module)} do
-        through #{inspect(workspace_user_module)}
-      end
-    end
-
-    code_interface do
-      define :get_workspace_by_id, get_by: [:id], action: :read
-    end
-    """
-
-    file_path = workspace_module |> Module.split() |> Enum.map(&Macro.underscore/1) |> Path.join()
-    file_path = "lib/#{file_path}.ex"
 
     igniter
-    |> Igniter.Project.Module.create_module(workspace_module, code)
+    |> generate_from_template(
+      "#{template_dir}/resources/workspace.ex",
+      "lib/#{otp_app}/accounts/workspace.ex",
+      module_prefix,
+      otp_app
+    )
     |> Igniter.assign(:workspace_module, workspace_module)
   end
 
   defp generate_workspace_user_resource(igniter) do
     domain_module = igniter.assigns.domain_module
-    repo_module = igniter.assigns.repo_module
     otp_app = Igniter.Project.Application.app_name(igniter)
+    module_prefix = Macro.camelize(to_string(otp_app))
+    template_dir = Path.join([__DIR__, "..", "..", "..", "priv", "templates"])
 
-    workspace_module = Module.concat([domain_module, Workspace])
     workspace_user_module = Module.concat([domain_module, WorkspaceUser])
-    user_module = Module.concat([domain_module, User])
-
-    code = """
-    use Ash.Resource,
-      otp_app: #{inspect(otp_app)},
-      domain: #{inspect(domain_module)},
-      data_layer: AshPostgres.DataLayer
-
-    postgres do
-      table "workspaces_users"
-      repo #{inspect(repo_module)}
-    end
-
-    actions do
-      defaults [
-        :read,
-        :destroy,
-        create: [:role, :workspace_id, :user_id],
-        update: [:role]
-      ]
-
-      read :get_workspace_users_by_workspace_id do
-        description "Get workspace users by workspace ID."
-        argument :workspace_id, :uuid, allow_nil?: false
-        filter expr(workspace_id == ^arg(:workspace_id))
-      end
-    end
-
-    attributes do
-      uuid_primary_key :id
-
-      attribute :role, :atom do
-        allow_nil? false
-        public? true
-        default :member
-        constraints one_of: [:admin, :member, :billing]
-      end
-
-      timestamps()
-    end
-
-    relationships do
-      belongs_to :workspace, #{inspect(workspace_module)} do
-        allow_nil? false
-        attribute_writable? true
-      end
-
-      belongs_to :user, #{inspect(user_module)} do
-        allow_nil? false
-        attribute_writable? true
-      end
-    end
-
-    code_interface do
-      define :get_workspace_users_by_workspace_id,
-        action: :get_workspace_users_by_workspace_id,
-        args: [:workspace_id]
-    end
-    """
 
     igniter
-    |> Igniter.Project.Module.create_module(workspace_user_module, code)
+    |> generate_from_template(
+      "#{template_dir}/resources/workspace_user.ex",
+      "lib/#{otp_app}/accounts/workspace_user.ex",
+      module_prefix,
+      otp_app
+    )
     |> Igniter.assign(:workspace_user_module, workspace_user_module)
   end
 
   defp generate_invitation_resource(igniter) do
     domain_module = igniter.assigns.domain_module
-    repo_module = igniter.assigns.repo_module
     otp_app = Igniter.Project.Application.app_name(igniter)
+    module_prefix = Macro.camelize(to_string(otp_app))
+    template_dir = Path.join([__DIR__, "..", "..", "..", "priv", "templates"])
 
-    workspace_module = Module.concat([domain_module, Workspace])
-    user_module = Module.concat([domain_module, User])
     invitation_module = Module.concat([domain_module, Invitation])
 
-    code = """
-    use Ash.Resource,
-      otp_app: #{inspect(otp_app)},
-      domain: #{inspect(domain_module)},
-      authorizers: [Ash.Policy.Authorizer],
-      data_layer: AshPostgres.DataLayer
-
-    @days_to_expire 7
-
-    postgres do
-      table "invitations"
-      repo #{inspect(repo_module)}
-    end
-
-    actions do
-      defaults [:read, :destroy]
-
-      create :create do
-        accept [:email, :role, :workspace_id, :user_id]
-
-        change AshWorkspace.Changes.SetToken
-        validate AshWorkspace.Validators.EmailUniquenessInWorkspace
-
-        change after_action(&AshWorkspace.Hooks.SendInvitationEmail.after_action/3)
-      end
-
-      update :resend_invitation do
-        require_atomic? false
-
-        change AshWorkspace.Changes.SetToken
-
-        change after_action(&AshWorkspace.Hooks.SendInvitationEmail.after_action/3)
-      end
-
-      read :get_pending_by_email do
-        description "Get pending invitation by email."
-        get? true
-        argument :email, :string, allow_nil?: false
-
-        filter expr(
-                 email == ^arg(:email) and
-                   status == :created and
-                   updated_at >= ago(@days_to_expire, "day")
-               )
-      end
-
-      read :get_all_pending_invitations do
-        description "Get all pending invitations."
-        filter expr(
-          status == :created and
-            updated_at >= ago(@days_to_expire, "day")
-        )
-      end
-
-      update :accept_invitation do
-        description "Accept an invitation."
-        change set_attribute(:status, :accepted)
-      end
-
-      update :revoke_invitation do
-        description "Revoke an invitation."
-        change set_attribute(:status, :revoked)
-      end
-    end
-
-    policies do
-      policy action([
-               :create,
-               :get_pending_by_email,
-               :get_all_pending_invitations,
-               :resend_invitation,
-               :accept_invitation,
-               :revoke_invitation,
-               :read
-             ]) do
-        authorize_if always()
-      end
-    end
-
-    validations do
-      validate match(:email, ~r/^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$/),
-        message: "Invalid email format"
-    end
-
-    attributes do
-      uuid_primary_key :id
-
-      attribute :email, :ci_string do
-        allow_nil? false
-      end
-
-      attribute :role, :atom do
-        constraints one_of: [:member, :billing, :admin]
-        allow_nil? false
-      end
-
-      attribute :token, :string do
-        allow_nil? false
-        sensitive? true
-      end
-
-      attribute :status, :atom do
-        default :created
-        constraints one_of: [:created, :accepted, :revoked]
-        allow_nil? false
-      end
-
-      timestamps()
-    end
-
-    relationships do
-      belongs_to :workspace, #{inspect(workspace_module)} do
-        allow_nil? false
-      end
-
-      belongs_to :user, #{inspect(user_module)} do
-        allow_nil? false
-      end
-    end
-
-    code_interface do
-      define :get_pending_invitations_by_email,
-        action: :get_pending_by_email,
-        args: [:email]
-    end
-    """
-
     igniter
-    |> Igniter.Project.Module.create_module(invitation_module, code)
+    |> generate_from_template(
+      "#{template_dir}/resources/invitation.ex",
+      "lib/#{otp_app}/accounts/invitation.ex",
+      module_prefix,
+      otp_app
+    )
     |> Igniter.assign(:invitation_module, invitation_module)
   end
 
@@ -655,28 +438,28 @@ if Code.ensure_loaded?(Igniter) do
           node = Sourceror.Zipper.node(z)
           case node do
             {:attribute, _, [{:__block__, _, [:role]} | _]} ->
-              Mix.shell().info("    Debug: Found role attribute!")
+              # Mix.shell().info("    Debug: Found role attribute!")
               true
             {:attribute, _, [:role | _]} ->
-              Mix.shell().info("    Debug: Found role attribute (simple form)!")
+              # Mix.shell().info("    Debug: Found role attribute (simple form)!")
               true
             _ ->
               false
           end
         end) do
           {:ok, attr_zipper} ->
-            Mix.shell().info("    Debug: Successfully moved to role attribute")
+            # Mix.shell().info("    Debug: Successfully moved to role attribute")
             # Found role attribute, navigate into its do block
             case Igniter.Code.Common.move_to_do_block(attr_zipper) do
               {:ok, do_block_zipper} ->
-                Mix.shell().info("    Debug: Found do block")
+                # Mix.shell().info("    Debug: Found do block")
                 # Look for constraints call
                 case Igniter.Code.Common.move_to(do_block_zipper, fn z ->
                   node = Sourceror.Zipper.node(z)
                   match?({:constraints, _, _}, node)
                 end) do
                   {:ok, constraints_zipper} ->
-                    Mix.shell().info("    Debug: Found constraints")
+                    # Mix.shell().info("    Debug: Found constraints")
                     # Found constraints, try to update the one_of list
                     node = Sourceror.Zipper.node(constraints_zipper)
                     # Mix.shell().info("    Debug: Constraints node: #{inspect(node)}")

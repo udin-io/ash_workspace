@@ -47,6 +47,19 @@ defmodule __MODULE_PREFIX__.Accounts.Invitation.Senders.SendInvitationEmail do
     |> Mailer.deliver!()
   end
 
+  @doc """
+  After-action hook to send invitation email using the raw token from context.
+  """
+  def after_action(changeset, result, _opts) do
+    raw_token = changeset.context[:raw_token]
+
+    if raw_token do
+      send(result, raw_token, changeset.context)
+    end
+
+    {:ok, result}
+  end
+
   defp get_workspace_name(invitation) do
     case __MODULE_PREFIX__.Accounts.get_workspace_by_id(invitation.workspace_id) do
       {:ok, workspace} when is_map(workspace) -> workspace.name
