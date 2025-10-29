@@ -189,7 +189,7 @@ if Code.ensure_loaded?(Igniter) do
           |> Sourceror.Zipper.append_child(
             quote do
               resource unquote(invitation_module) do
-                define :create_invitation, action: :create, args: [:email, :role, :workspace_id]
+                define :create_invitation, action: :create, args: [:email, :role, :workspace_id, :user_id]
                 define :get_pending_invitations_by_email, action: :get_pending_by_email, args: [:email]
                 define :list_all_pending_invitations, action: :get_all_pending_invitations
                 define :resend_invitation, action: :resend_invitation
@@ -1037,7 +1037,7 @@ if Code.ensure_loaded?(Igniter) do
          define :create_workspace, resource: YourApp.Accounts.Workspace, action: :create, args: [:name]
          define :get_workspace_by_id, resource: YourApp.Accounts.Workspace, action: :get_workspace_by_id, args: [:id]
          define :create_workspace_user, resource: YourApp.Accounts.WorkspaceUser, action: :create, args: [:role, :workspace_id, :user_id]
-         define :create_invitation, resource: YourApp.Accounts.Invitation, action: :create, args: [:email, :role, :workspace_id]
+         define :create_invitation, resource: YourApp.Accounts.Invitation, action: :create, args: [:email, :role, :workspace_id, :user_id]
          define :get_pending_invitations_by_email, resource: YourApp.Accounts.Invitation, action: :get_pending_by_email, args: [:email]
          define :accept_invitation, resource: YourApp.Accounts.Invitation, action: :accept, args: [:id]
        end

@@ -67,7 +67,6 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Components do
       <:action :let={member}>
         <.button
           :if={@current_user.id != member.id}
-          variant="ghost"
           size="xs"
           class="text-error"
           phx-click="open_remove_member_modal"
@@ -101,14 +100,13 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Components do
         {invite.email}
       </:col>
       <:col :let={invite} label="Role">
-        <.badge size="sm" variant="ghost">{human_role(invite.role)}</.badge>
+        <.badge size="sm">{human_role(invite.role)}</.badge>
       </:col>
       <:col :let={invite} label="Invited">
         {invitation_time_ago(invite.updated_at)}
       </:col>
       <:action :let={invite}>
         <.button
-          variant="ghost"
           size="xs"
           phx-click="resend_invite"
           phx-value-id={invite.id}
@@ -116,7 +114,6 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Components do
           Resend
         </.button>
         <.button
-          variant="ghost"
           size="xs"
           class="text-error"
           phx-click="open_revoke_invite_modal"
