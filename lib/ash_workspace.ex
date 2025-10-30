@@ -67,26 +67,39 @@ defmodule AshWorkspace do
   - Automatic email delivery
   - Status tracking (created, accepted, revoked)
 
-  ## Modules Overview
+  ## Architecture
 
-  ### Changes
-  - `AshWorkspace.Changes.SetToken` - Generate secure invitation tokens
-  - `AshWorkspace.Changes.CreateDefaultWorkspace` - Auto-create workspace on signup
+  AshWorkspace uses a **template-based code generation** approach:
 
-  ### Validators
-  - `AshWorkspace.Validators.EmailUniquenessInWorkspace` - Prevent duplicate invitations
-  - `AshWorkspace.Validators.StrongPasswordValidation` - Enforce password requirements
+  - **Shared Code**: Only `AshWorkspace.Changes.SetToken` is shared across projects
+  - **Generated Code**: All resources, validators, senders, and LiveViews are generated
+    from templates into your project during installation
+  - **Full Control**: Generated code becomes part of your codebase, fully customizable
 
-  ### Hooks
-  - `AshWorkspace.Hooks.SendInvitationEmail` - After-action hook for sending emails
+  ## Generated Modules
 
-  ### Senders
-  - `AshWorkspace.Senders.InvitationEmail` - Default email sender with customizable templates
+  The installer generates these modules in your project:
 
-  ### Resources (Templates)
-  - `AshWorkspace.Resources.Workspace` - Documentation and template
-  - `AshWorkspace.Resources.WorkspaceUser` - Documentation and template
-  - `AshWorkspace.Resources.Invitation` - Documentation and template
+  ### Resources
+  - `YourApp.Accounts.Workspace` - Workspace resource
+  - `YourApp.Accounts.WorkspaceUser` - Join table with role attribute
+  - `YourApp.Accounts.Invitation` - Invitation resource with token handling
+
+  ### Changes & Validators
+  - `YourApp.Accounts.Changes.CreateDefaultWorkspace` - Auto-create workspace on signup
+  - `YourApp.Accounts.Validators.EmailUniquenessInWorkspace` - Prevent duplicate invitations
+  - `YourApp.Accounts.Validators.StrongPasswordValidation` - Enforce password requirements
+
+  ### Email Senders
+  - `YourApp.Accounts.Invitation.Senders.SendInvitationEmail` - Invitation email sender
+  - `YourApp.Accounts.User.Senders.SendNewUserConfirmationEmail` - User confirmation
+  - `YourApp.Accounts.User.Senders.SendPasswordResetEmail` - Password reset
+
+  ### LiveViews
+  - `YourAppWeb.WorkspaceLive.Index` - Workspace list (default landing page)
+  - `YourAppWeb.TeamLive.Index` - Team management for workspace admins
+  - `YourAppWeb.AuthLive.*` - Authentication pages (register, sign-in, reset)
+  - `YourAppWeb.InvitationAcceptanceLive.*` - Invitation acceptance flow
 
   ## Customization
 

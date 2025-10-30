@@ -35,33 +35,30 @@ mix ash_workspace.install
 
 The installer will:
 - Generate Workspace, WorkspaceUser, and Invitation resources
+- Generate LiveViews for workspace list, team management, auth pages
+- Generate email senders for invitations, confirmations, password resets
+- Generate validators and change modules
 - Create database migrations
-- Update your User resource with workspace relationships
-- Add configuration templates
+- Update your User resource with workspace relationships and password authentication
+- Add router routes for authentication and team management
 
 ## Quick Start
 
-### 1. Configure your application
-
-```elixir
-# config/config.exs
-config :ash_workspace,
-  domain: MyApp.Accounts,
-  workspace_user_resource: MyApp.Accounts.WorkspaceUser,
-  invitation_resource: MyApp.Accounts.Invitation,
-  mailer: MyApp.Mailer,
-  from_email: {"MyApp Team", "noreply@myapp.com"},
-  app_name: "MyApp",
-  url_builder: &MyAppWeb.Router.Helpers.invitation_acceptance_url/3
-```
-
-### 2. Run migrations
+### 1. Run migrations
 
 ```bash
-mix ecto.migrate
+mix ash.setup
 ```
 
-### 3. Start using workspaces
+### 2. Start your server
+
+```bash
+mix phx.server
+```
+
+Visit `http://localhost:4000/register` to create your first workspace!
+
+### 3. Using workspaces in code
 
 ```elixir
 # Create a workspace
@@ -81,7 +78,16 @@ mix ecto.migrate
 
 ## How It Works
 
-### Architecture
+### Template-Based Code Generation
+
+AshWorkspace uses a **template-based approach** - instead of providing pre-built modules, it generates all code into your project during installation:
+
+- **✅ Full Control**: All generated code becomes part of your codebase
+- **✅ Easy Customization**: Edit generated files directly - they're yours
+- **✅ No Hidden Dependencies**: Only `AshWorkspace.Changes.SetToken` is shared
+- **✅ Type-Safe**: Generated code is tailored to your project's module structure
+
+### Data Architecture
 
 ```
 ┌─────────────┐
@@ -115,11 +121,11 @@ mix ecto.migrate
 
 ### Invitation Flow
 
-1. **Admin creates invitation** → `create_invitation/1`
-2. **System generates token** → `AshWorkspace.Changes.SetToken`
-3. **System validates email** → `AshWorkspace.Validators.EmailUniquenessInWorkspace`
-4. **System sends email** → `AshWorkspace.Hooks.SendInvitationEmail`
-5. **User clicks link** → Routes to acceptance page
+1. **Admin creates invitation** → `MyApp.Accounts.create_invitation/1`
+2. **System generates token** → `AshWorkspace.Changes.SetToken` (shared module)
+3. **System validates email** → `MyApp.Accounts.Validators.EmailUniquenessInWorkspace` (generated)
+4. **System sends email** → `MyApp.Accounts.Invitation.Senders.SendInvitationEmail` (generated)
+5. **User clicks link** → Routes to acceptance page (generated LiveView)
 6. **User accepts** → `accept_invitation/1` + Create `WorkspaceUser` record
 
 ### Security
@@ -132,110 +138,97 @@ mix ecto.migrate
 
 ## Customization
 
+Since all code is generated into your project, customization is straightforward - just edit the generated files!
+
 ### Custom Email Templates
 
-```elixir
-# config/config.exs
-config :ash_workspace, AshWorkspace.Senders.InvitationEmail,
-  subject: fn workspace_name -> "Join #{workspace_name} on MyApp!" end,
-  html_body: &MyApp.EmailTemplates.invitation_html/2,
-  text_body: &MyApp.EmailTemplates.invitation_text/2
-```
-
-### Custom Password Requirements
+Edit `lib/my_app/accounts/invitation/senders/send_invitation_email.ex`:
 
 ```elixir
-config :ash_workspace, :password_requirements,
-  min_length: 12,
-  require_uppercase: true,
-  require_lowercase: true,
-  require_digit: true,
-  require_special: true
+defmodule MyApp.Accounts.Invitation.Senders.SendInvitationEmail do
+  # ...
+
+  @impl true
+  def send(invitation, token, _context) do
+    url = url(~p"/invitation/accept/#{invitation.email}/#{token}")
+    workspace_name = get_workspace_name(invitation)
+
+    new()
+    |> from({"MyApp Team", "noreply@myapp.com"})
+    |> to(to_string(invitation.email))
+    |> subject("Join #{workspace_name} on MyApp!")  # Customize here
+    |> html_body("""
+      <!-- Your custom HTML template -->
+      <a href="#{url}">Accept Invitation</a>
+    """)
+    |> Mailer.deliver!()
+  end
+end
 ```
 
 ### Custom Roles
 
-Edit your generated `WorkspaceUser` resource:
+Edit `lib/my_app/accounts/workspace_user.ex`:
 
 ```elixir
 attribute :role, :atom do
   allow_nil? false
   public? true
   default :member
-  constraints one_of: [:owner, :admin, :member, :viewer, :billing, :guest]
+  constraints one_of: [:owner, :admin, :member, :viewer, :billing, :guest]  # Add custom roles
 end
 ```
 
-### Custom Invitation Sender
+### Custom Validators
 
-```elixir
-defmodule MyApp.CustomInvitationSender do
-  def send(invitation, token, _context) do
-    # Your custom email logic
-    MyApp.SlackNotifier.send_invitation_notification(invitation)
-    MyApp.Mailer.send_custom_invite(invitation, token)
-  end
-end
+Edit `lib/my_app/accounts/validators/email_uniqueness_in_workspace.ex` or create your own validator and reference it in the Invitation resource.
 
-# Configure it
-config :ash_workspace,
-  invitation_sender: MyApp.CustomInvitationSender
-```
+## Generated Files
 
-## Module Reference
+After running `mix ash_workspace.install`, these files are created in your project:
 
-### Changes
+### Resources (`lib/my_app/accounts/`)
 
-- `AshWorkspace.Changes.SetToken` - Generates secure invitation tokens
-- `AshWorkspace.Changes.CreateDefaultWorkspace` - Auto-creates workspace on user registration
+- `workspace.ex` - Workspace resource
+- `workspace_user.ex` - Join table with role attribute
+- `invitation.ex` - Invitation resource with token handling
 
-### Validators
+### Changes (`lib/my_app/accounts/changes/`)
 
-- `AshWorkspace.Validators.EmailUniquenessInWorkspace` - Prevents duplicate invitations
-- `AshWorkspace.Validators.StrongPasswordValidation` - Enforces password strength
+- `create_default_workspace.ex` - Auto-creates workspace on user registration
 
-### Hooks
+### Validators (`lib/my_app/accounts/validators/`)
 
-- `AshWorkspace.Hooks.SendInvitationEmail` - Sends invitation emails after creation
+- `email_uniqueness_in_workspace.ex` - Prevents duplicate invitations
+- `strong_password_validation.ex` - Enforces password strength
 
-### Senders
+### Email Senders (`lib/my_app/accounts/`)
 
-- `AshWorkspace.Senders.InvitationEmail` - Default email sender with customizable templates
+- `invitation/senders/send_invitation_email.ex` - Invitation emails
+- `user/senders/send_new_user_confirmation_email.ex` - User confirmations
+- `user/senders/send_password_reset_email.ex` - Password resets
 
-### Resources (Templates)
+### LiveViews (`lib/my_app_web/live/`)
 
-- `AshWorkspace.Resources.Workspace` - Documentation and reference
-- `AshWorkspace.Resources.WorkspaceUser` - Documentation and reference
-- `AshWorkspace.Resources.Invitation` - Documentation and reference
+- `workspace_live/index.ex` - Workspace list (default landing page)
+- `team_live/index.ex` - Team management for admins
+- `auth_live/*.ex` - Authentication pages (register, sign-in, reset)
+- `invitation_acceptance_live/*.ex` - Invitation acceptance flow
 
-## Configuration Reference
+### Shared Module (Package)
 
-### Required Configuration
+- `AshWorkspace.Changes.SetToken` - Token generation (only shared code)
 
-```elixir
-config :ash_workspace,
-  domain: MyApp.Accounts,                          # Your Ash domain
-  workspace_user_resource: MyApp.Accounts.WorkspaceUser,
-  invitation_resource: MyApp.Accounts.Invitation,
-  mailer: MyApp.Mailer,                           # Swoosh mailer
-  from_email: {"MyApp", "noreply@myapp.com"},     # From address
-  url_builder: &MyAppWeb.Router.Helpers.invitation_url/3  # URL builder function
-```
+## Routes Added
 
-### Optional Configuration
+The installer adds these routes to your router:
 
-```elixir
-config :ash_workspace,
-  app_name: "MyApp",                              # Default: "Workspace"
-  invitation_sender: MyApp.CustomSender,          # Default: AshWorkspace.Senders.InvitationEmail
-  password_requirements: [                        # Password validation rules
-    min_length: 10,
-    require_uppercase: true,
-    require_lowercase: true,
-    require_digit: true,
-    require_special: true
-  ]
-```
+- `GET /` - Workspace list (authenticated users)
+- `GET /register` - User registration with workspace creation
+- `GET /sign-in` - Sign in page
+- `GET /reset` - Password reset page
+- `GET /workspaces/:workspace_id/team` - Team management (workspace admins only)
+- `GET /invitation/accept/:email/:token` - Invitation acceptance
 
 ## Examples
 
