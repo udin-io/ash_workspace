@@ -59,7 +59,6 @@ if Code.ensure_loaded?(Igniter) do
     |> update_router()
     # TODO: Comment out manual migration generation - let Ash handle it
     # |> generate_migrations()
-    |> add_configuration()
     |> print_success_message()
     |> run_ash_codegen()
   end
@@ -320,29 +319,6 @@ if Code.ensure_loaded?(Igniter) do
     """
 
     Igniter.create_new_file(igniter, "priv/repo/migrations/#{timestamp}_#{migration_name}.exs", migration_content)
-  end
-
-  defp add_configuration(igniter) do
-    domain_module = igniter.assigns.domain_module
-    workspace_user_module = igniter.assigns.workspace_user_module
-    invitation_module = igniter.assigns.invitation_module
-    otp_app = Igniter.Project.Application.app_name(igniter)
-
-    config_content = """
-
-    # AshWorkspace Configuration
-    config :ash_workspace,
-      domain: #{inspect(domain_module)},
-      workspace_user_resource: #{inspect(workspace_user_module)},
-      invitation_resource: #{inspect(invitation_module)},
-      mailer: #{inspect(Module.concat([Macro.camelize(to_string(otp_app)), Mailer]))},
-      from_email: {"#{Macro.camelize(to_string(otp_app))} Team", "noreply@example.com"},
-      app_name: "#{Macro.camelize(to_string(otp_app))}",
-      url_builder: &#{inspect(Module.concat([Macro.camelize(to_string(otp_app)) <> "Web", Router, Helpers]))}.invitation_acceptance_url/3
-    """
-
-    # Add to config/config.exs
-    Igniter.Project.Config.configure(igniter, "config.exs", otp_app, [:ash_workspace], config_content)
   end
 
   defp update_user_resource(igniter) do
@@ -891,7 +867,6 @@ if Code.ensure_loaded?(Igniter) do
     - ✅ Auth and Invitation controllers
     - ✅ Helper modules (AshWorkspaceLiveUserAuth, AshFrameworkAuthOverrides)
     - ✅ Router routes for auth and invitations
-    - ✅ Configuration file
 
     ⚠️  Manual steps required:
 
