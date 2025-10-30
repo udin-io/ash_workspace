@@ -284,9 +284,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 Created by the Ash community. Inspired by common multi-tenancy patterns in SaaS applications.
 
-## Support
+## Screenshot
 
-- [Documentation](https://hexdocs.pm/ash_workspace)
-- [GitHub Issues](https://github.com/your-org/ash_workspace/issues)
-- [Ash Framework Discord](https://discord.gg/ash)
+### Sign-up and Create Workspace
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-56-14" src="https://github.com/user-attachments/assets/0c8a2741-c0eb-41a7-8990-4ddfa1edb0f0" />
+
+
 
