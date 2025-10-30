@@ -290,5 +290,28 @@ Created by the Ash community. Inspired by common multi-tenancy patterns in SaaS 
 
 <img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-56-14" src="https://github.com/user-attachments/assets/0c8a2741-c0eb-41a7-8990-4ddfa1edb0f0" />
 
+### Sign-in 
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-51-18" src="https://github.com/user-attachments/assets/9eb74500-e2aa-4380-9d48-69ed346fb099" />
+
+### View your workspaces and see manage option if admin 
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-51-36" src="https://github.com/user-attachments/assets/e5430c98-7524-4c65-a120-718d48aaa177" />
+
+### Invite new members
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-51-56" src="https://github.com/user-attachments/assets/ad4b1534-daf6-4a33-8416-788b56b46c3a" />
+
+### Review pending invites
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-52-03" src="https://github.com/user-attachments/assets/0219cdb2-3a1f-4ad1-9800-99dcec0fb56c" />
+
+### Accept an invitation (and signup)
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-52-37" src="https://github.com/user-attachments/assets/bedfbbba-8156-4f4d-b056-c220bf402698" />
+
+### View workspaces you are a member of (as non-admin)
+
+<img width="1323" height="1006" alt="Screenshot from 2025-10-30 12-53-06" src="https://github.com/user-attachments/assets/f2ec547d-76dc-4966-9503-b972f04733a6" />
 
 
