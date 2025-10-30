@@ -9,16 +9,21 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.SignInIndex do
 
   def render(assigns) do
     ~H"""
-    <Layouts.flash_group flash={@flash} />
-    <div class="flex flex-col justify-center items-center h-full bg-white">
-      <p class="text-blue-800 font-bold text-4xl">Sign-In</p>
-      <.sign_in_form
-        form={@form}
-        invitation={@invitation}
-        action={@action}
-        trigger_action={@trigger_action}
-      />
-      <.sign_in_footer email={@invitation.email} token={@raw_token} />
+    <div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+      <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+          <Layouts.flash_group flash={@flash} />
+          <h1 class="card-title text-3xl font-bold text-center justify-center mb-2">Accept Invitation</h1>
+          <p class="text-center text-base-content/70 mb-4">Sign in to join the workspace</p>
+          <.sign_in_form
+            form={@form}
+            invitation={@invitation}
+            action={@action}
+            trigger_action={@trigger_action}
+          />
+          <.sign_in_footer email={@invitation.email} token={@raw_token} />
+        </div>
+      </div>
     </div>
     """
   end

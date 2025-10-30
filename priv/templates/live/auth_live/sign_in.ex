@@ -5,47 +5,49 @@ defmodule __MODULE_PREFIX__Web.AuthLive.SignIn do
 
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col justify-center items-center h-full bg-white">
-      <p class="text-blue-800 font-bold text-4xl">Sign-In</p>
-      <.form
-        id="sign-in-form"
-        for={@form}
-        phx-change="validate"
-        phx-submit="submit"
-        phx-trigger-action={@trigger_action}
-        action={@action}
-        method="post"
-        class="mt-4 space-y-3"
-      >
-        <.input
-          field={@form[:email]}
-          id="user_email"
-          type="email"
-          label="Email"
-          placeholder="Enter your email"
-          required
-          oninput="this.value = this.value.toLowerCase()"
-        />
-        <.input
-          field={@form[:password]}
-          id="user_password"
-          type="password"
-          label="Password"
-          placeholder="Enter your password"
-          required
-        />
-        <div class="pt-3">
-          <button
-            type="submit"
-            id="sign-in-submit-button"
-            class="w-52 bg-black text-white text-sm py-2 rounded-lg  hover:bg-gray-400 hover:text-black "
-          >
-            Sign In
-          </button>
-        </div>
-      </.form>
+    <div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+      <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h1 class="card-title text-3xl font-bold text-center justify-center mb-2">Welcome Back</h1>
+          <p class="text-center text-base-content/70 mb-4">Sign in to your workspace</p>
 
-      <.sign_in_footer />
+          <.form
+            id="sign-in-form"
+            for={@form}
+            phx-change="validate"
+            phx-submit="submit"
+            phx-trigger-action={@trigger_action}
+            action={@action}
+            method="post"
+            class="space-y-4"
+          >
+            <.input
+              field={@form[:email]}
+              id="user_email"
+              type="email"
+              label="Email"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+              oninput="this.value = this.value.toLowerCase()"
+            />
+            <.input
+              field={@form[:password]}
+              id="user_password"
+              type="password"
+              label="Password"
+              placeholder="Enter your password"
+              autocomplete="off"
+              required
+            />
+            <button type="submit" id="sign-in-submit-button" class="btn btn-primary w-full">
+              Sign In
+            </button>
+          </.form>
+
+          <.sign_in_footer />
+        </div>
+      </div>
     </div>
     """
   end

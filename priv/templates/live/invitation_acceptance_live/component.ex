@@ -16,7 +16,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
       phx-change="validate"
       phx-submit="submit"
       method="post"
-      class="mt-4 space-y-3 w-80 flex flex-col justify-center"
+      class="space-y-4"
     >
       <.readonly_email_input form={@form} email={@invitation.email} />
       <.input
@@ -25,6 +25,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
         type="password"
         label="Password"
         placeholder="Enter your password"
+        autocomplete="off"
         required
       />
       <.input
@@ -33,9 +34,10 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
         type="password"
         label="Password Confirmation"
         placeholder="Confirm your password"
+        autocomplete="off"
         required
       />
-      <.submit_button id="register-submit-button" text="Create account & Continue" />
+      <.submit_button id="register-submit-button" text="Create Account & Continue" />
     </.form>
     """
   end
@@ -50,7 +52,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
       phx-trigger-action={@trigger_action}
       action={@action}
       method="post"
-      class="mt-4 space-y-3"
+      class="space-y-4"
     >
       <.readonly_email_input form={@form} email={@invitation.email} />
       <.input
@@ -59,11 +61,10 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
         type="password"
         label="Password"
         placeholder="Enter your password"
+        autocomplete="off"
         required
       />
-      <div class="pt-3">
-        <.submit_button text="Sign In" id="sign-in-submit-button" />
-      </div>
+      <.submit_button text="Sign In" id="sign-in-submit-button" />
     </.form>
     """
   end
@@ -73,17 +74,16 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
   def sign_in_footer(assigns) do
     ~H"""
     <.footer_wrapper>
-      <div class="flex justify-between text-sm text-gray-600">
+      <div class="flex justify-center text-sm text-base-content/70">
         <p>
           Don't have an account?
           <.link
             navigate={~p"/invitation/accept/register/#{@email}/#{@token}"}
-            class="text-black font-medium hover:underline"
+            class="link link-primary font-medium"
           >
             Register
           </.link>
         </p>
-        <p></p>
       </div>
     </.footer_wrapper>
     """
@@ -92,11 +92,11 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
   def register_footer(assigns) do
     ~H"""
     <.footer_wrapper>
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-base-content/70">
         Already have an account?
         <.link
           navigate={~p"/invitation/accept/sign-in/#{@email}/#{@token}"}
-          class="text-black font-medium hover:underline"
+          class="link link-primary font-medium"
         >
           Sign in
         </.link>
@@ -107,8 +107,8 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
 
   def footer_wrapper(assigns) do
     ~H"""
-    <div class="w-80 mt-6 text-center">
-      <hr class="border-gray-300 mb-4" />
+    <div class="mt-6 text-center">
+      <div class="divider"></div>
       {render_slot(@inner_block)}
     </div>
     """
@@ -125,6 +125,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
       id="user_email"
       label="Email"
       placeholder="Enter your email"
+      autocomplete="email"
       required
       readonly
       oninput="this.value = this.value.toLowerCase()"
@@ -134,11 +135,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
 
   defp submit_button(assigns) do
     ~H"""
-    <button
-      type="submit"
-      id={@id}
-      class="w-[80%] self-center bg-black text-white text-sm py-2 rounded-lg hover:bg-gray-400 hover:text-black"
-    >
+    <button type="submit" id={@id} class="btn btn-primary w-full">
       {@text}
     </button>
     """

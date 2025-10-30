@@ -9,11 +9,16 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.RegisterIndex do
 
   def render(assigns) do
     ~H"""
-    <Layouts.flash_group flash={@flash} />
-    <div class="flex flex-col justify-center items-center h-full bg-white">
-      <p class="text-blue-800 font-bold text-4xl">Register</p>
-      <.register_form form={@form} invitation={@invitation} />
-      <.register_footer email={@invitation.email} token={@raw_token} />
+    <div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+      <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+          <Layouts.flash_group flash={@flash} />
+          <h1 class="card-title text-3xl font-bold text-center justify-center mb-2">Accept Invitation</h1>
+          <p class="text-center text-base-content/70 mb-4">Create your account to join the workspace</p>
+          <.register_form form={@form} invitation={@invitation} />
+          <.register_footer email={@invitation.email} token={@raw_token} />
+        </div>
+      </div>
     </div>
     """
   end

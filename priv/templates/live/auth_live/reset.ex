@@ -5,34 +5,37 @@ defmodule __MODULE_PREFIX__Web.AuthLive.Reset do
 
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col justify-center items-center h-full bg-white">
-      <p class="text-blue-800 font-bold text-4xl">Reset Password</p>
+    <div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+      <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h1 class="card-title text-3xl font-bold text-center justify-center mb-2">Reset Password</h1>
+          <p class="text-center text-base-content/70 mb-4">Enter your email to receive a reset link</p>
 
-      <.form
-        id="password-reset-form"
-        for={@form}
-        phx-change="validate"
-        phx-submit="submit"
-        method="post"
-        class="mt-4 space-y-3 w-80 flex flex-col justify-center"
-      >
-        <.input
-          field={@form[:email]}
-          type="email"
-          label="Email"
-          placeholder="Enter your email"
-          required
-          oninput="this.value = this.value.toLowerCase()"
-        />
-        <button
-          type="submit"
-          class="w-[80%] self-center bg-black text-white text-sm py-2 rounded-lg hover:bg-gray-400 hover:text-black pt-3"
-        >
-          Send password reset mail
-        </button>
-      </.form>
+          <.form
+            id="password-reset-form"
+            for={@form}
+            phx-change="validate"
+            phx-submit="submit"
+            method="post"
+            class="space-y-4"
+          >
+            <.input
+              field={@form[:email]}
+              type="email"
+              label="Email"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+              oninput="this.value = this.value.toLowerCase()"
+            />
+            <button type="submit" class="btn btn-primary w-full">
+              Send Password Reset Email
+            </button>
+          </.form>
 
-      <.register_footer />
+          <.register_footer />
+        </div>
+      </div>
     </div>
     """
   end

@@ -4,16 +4,16 @@ defmodule __MODULE_PREFIX__Web.AuthLive.Components do
   def sign_in_footer(assigns) do
     ~H"""
     <.footer_wrapper>
-      <div class="flex justify-between text-sm text-gray-600">
+      <div class="flex flex-col sm:flex-row justify-between gap-2 text-sm text-base-content/70">
         <p>
           Don't have an account?
-          <.link navigate={~p"/register"} class="text-black font-medium hover:underline">
+          <.link navigate={~p"/register"} class="link link-primary font-medium">
             Register
           </.link>
         </p>
         <p>
-          <.link navigate={~p"/reset"} class="text-black font-medium hover:underline">
-            Forgot your password?
+          <.link navigate={~p"/reset"} class="link link-primary font-medium">
+            Forgot password?
           </.link>
         </p>
       </div>
@@ -24,9 +24,9 @@ defmodule __MODULE_PREFIX__Web.AuthLive.Components do
   def register_footer(assigns) do
     ~H"""
     <.footer_wrapper>
-      <p class="text-sm text-gray-600">
+      <p class="text-sm text-base-content/70">
         Already have an account?
-        <.link navigate={~p"/sign-in"} class="text-black font-medium hover:underline">
+        <.link navigate={~p"/sign-in"} class="link link-primary font-medium">
           Sign in
         </.link>
       </p>
@@ -36,8 +36,8 @@ defmodule __MODULE_PREFIX__Web.AuthLive.Components do
 
   def footer_wrapper(assigns) do
     ~H"""
-    <div class="w-80 mt-6 text-center">
-      <hr class="border-gray-300 mb-4" />
+    <div class="mt-6 text-center">
+      <div class="divider"></div>
       {render_slot(@inner_block)}
     </div>
     """

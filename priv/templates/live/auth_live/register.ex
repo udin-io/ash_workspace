@@ -5,60 +5,66 @@ defmodule __MODULE_PREFIX__Web.AuthLive.Register do
 
   def render(assigns) do
     ~H"""
-    <div class="flex flex-col justify-center items-center h-full bg-white">
-      <p class="text-blue-800 font-bold text-4xl">Register</p>
+    <div class="min-h-screen bg-base-200 flex items-center justify-center p-4">
+      <div class="card w-full max-w-md bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h1 class="card-title text-3xl font-bold text-center justify-center mb-2">Create Account</h1>
+          <p class="text-center text-base-content/70 mb-4">Sign up to create your workspace</p>
 
-      <.form
-        id="registration-form"
-        for={@form}
-        phx-change="validate"
-        phx-submit="submit"
-        method="post"
-        class="mt-4 space-y-3 w-80 flex flex-col justify-center"
-      >
-        <.input
-          field={@form[:email]}
-          type="email"
-          id="user_email"
-          label="Email"
-          placeholder="Enter your email"
-          required
-          oninput="this.value = this.value.toLowerCase()"
-        />
-        <.input
-          field={@form[:password]}
-          id="user_password"
-          type="password"
-          label="Password"
-          placeholder="Enter your password"
-          required
-        />
-        <.input
-          field={@form[:password_confirmation]}
-          id="user_password_confirmation"
-          type="password"
-          label="Password Confirmation"
-          placeholder="Confirm your password"
-          required
-        />
-        <.input
-          field={@form[:workspace_name]}
-          id="user_workspace_name"
-          type="text"
-          label="Workspace Name"
-          placeholder="Your workspace name"
-          required
-          oninput="this.value = this.value.trimStart()"
-        />
-        <button
-          type="submit"
-          class="w-[80%] self-center bg-black text-white text-sm py-2 rounded-lg hover:bg-gray-400 hover:text-black pt-3"
-        >
-          Create Workspace & Continue
-        </button>
-      </.form>
+          <.form
+            id="registration-form"
+            for={@form}
+            phx-change="validate"
+            phx-submit="submit"
+            method="post"
+            class="space-y-4"
+          >
+            <.input
+              field={@form[:email]}
+              type="email"
+              id="user_email"
+              label="Email"
+              placeholder="Enter your email"
+              autocomplete="email"
+              required
+              oninput="this.value = this.value.toLowerCase()"
+            />
+            <.input
+              field={@form[:password]}
+              id="user_password"
+              type="password"
+              label="Password"
+              placeholder="Enter your password"
+              autocomplete="off"
+              required
+            />
+            <.input
+              field={@form[:password_confirmation]}
+              id="user_password_confirmation"
+              type="password"
+              label="Password Confirmation"
+              placeholder="Confirm your password"
+              autocomplete="off"
+              required
+            />
+            <.input
+              field={@form[:workspace_name]}
+              id="user_workspace_name"
+              type="text"
+              label="Workspace Name"
+              placeholder="Your workspace name"
+              autocomplete="organization"
+              required
+              oninput="this.value = this.value.trimStart()"
+            />
+            <button type="submit" class="btn btn-primary w-full">
+              Create Workspace & Continue
+            </button>
+          </.form>
 
-      <.register_footer />
+          <.register_footer />
+        </div>
+      </div>
     </div>
     """
   end
