@@ -3,7 +3,7 @@ defmodule __MODULE_PREFIX__Web.AuthController do
   use AshAuthentication.Phoenix.Controller
 
   def success(conn, activity, user, _token) do
-    return_to = get_session(conn, :return_to) || ~p"/home"
+    return_to = get_session(conn, :return_to) || ~p"/"
 
     message =
       case activity do

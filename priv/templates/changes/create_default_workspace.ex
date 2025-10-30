@@ -16,8 +16,9 @@ defmodule __MODULE_PREFIX__.Accounts.Changes.CreateDefaultWorkspace do
         Ash.Changeset.manage_relationship(
           changeset,
           :workspaces,
-          [%{name: name, role: "admin"}],
-          on_no_match: :create
+          [%{name: name, role: :admin}],
+          on_no_match: :create,
+          join_keys: [:role]
         )
     end
   end

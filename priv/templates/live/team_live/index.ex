@@ -55,10 +55,10 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     """
   end
 
-  def mount(_params, _session, socket) do
+  def mount(%{"workspace_id" => workspace_id}, _session, socket) do
     {:ok,
      socket
-     |> setup_page_defaults()}
+     |> setup_page_defaults(workspace_id)}
   end
 
   def handle_event("search_member", %{"member_query" => query}, socket) do
@@ -118,11 +118,12 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
 
   def handle_event("confirm_remove_member", _params, socket) do
     id = socket.assigns.remove_member_id
+    workspace_id = socket.assigns.current_workspace_id
 
     case Accounts.delete_workspace_user(id) do
       :ok ->
         {:noreply,
-         put_flash(socket, :info, "Member removed successfully.") |> setup_page_defaults()}
+         put_flash(socket, :info, "Member removed successfully.") |> setup_page_defaults(workspace_id)}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Member not found.")}
@@ -152,7 +153,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
            show_invite_modal: false
          )
          |> put_flash(:info, "Invitation sent!")
-         |> setup_page_defaults()}
+         |> setup_page_defaults(workspace_id)}
 
       {:error, %Ash.Error.Invalid{errors: errors}} ->
         parsed_errors =
@@ -170,9 +171,11 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   end
 
   def handle_event("resend_invite", %{"id" => id}, socket) do
+    workspace_id = socket.assigns.current_workspace_id
+
     case __MODULE_PREFIX__.Accounts.resend_invitation(id) do
       {:ok, _} ->
-        {:noreply, put_flash(socket, :info, "Invitation resent.") |> setup_page_defaults()}
+        {:noreply, put_flash(socket, :info, "Invitation resent.") |> setup_page_defaults(workspace_id)}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to resend invitation.")}
@@ -181,6 +184,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
 
   def handle_event("confirm_revoke_invite", _params, socket) do
     id = socket.assigns.revoke_invite_id
+    workspace_id = socket.assigns.current_workspace_id
 
     case __MODULE_PREFIX__.Accounts.revoke_invitation(id) do
       {:ok, _} ->
@@ -188,7 +192,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
          socket
          |> put_flash(:info, "Invitation revoked.")
          |> assign(show_revoke_invite_modal: false)
-         |> setup_page_defaults()}
+         |> setup_page_defaults(workspace_id)}
 
       {:error, _} ->
         {:noreply,
@@ -198,13 +202,9 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     end
   end
 
-  defp setup_page_defaults(socket) do
-    user = Ash.load!(socket.assigns.current_user, :workspaces)
-    [workspace | _] = user.workspaces
-    workspace_id = workspace.id
-
+  defp setup_page_defaults(socket, workspace_id) do
     members = setup_members(workspace_id)
-    invitations = setup_pending_invitations()
+    invitations = setup_pending_invitations(workspace_id)
 
     assign(socket,
       page_title: "Team",
@@ -240,8 +240,8 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     end)
   end
 
-  defp setup_pending_invitations do
+  defp setup_pending_invitations(workspace_id) do
     {:ok, invitations} = __MODULE_PREFIX__.Accounts.list_all_pending_invitations()
-    invitations
+    Enum.filter(invitations, fn inv -> to_string(inv.workspace_id) == workspace_id end)
   end
 end

@@ -39,7 +39,7 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
 
   def on_mount(:admin_only, _params, _session, socket) do
     if socket.assigns[:current_user] do
-      if socket.assigns[:current_user].role in [:admin, :owner] do
+      if socket.assigns[:current_user].role == :admin do
         {:cont, socket}
       else
         {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
@@ -51,15 +51,23 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
     end
   end
 
-  def on_mount(:admin_or_owner, _params, _session, socket) do
-    if socket.assigns[:current_user] do
-      if socket.assigns[:current_user].role in [:admin, :owner] do
+  def on_mount(:workspace_admin, params, _session, socket) do
+    workspace_id = Map.get(params, "workspace_id")
+
+    if socket.assigns[:current_user] && workspace_id do
+      # Load user's workspace_users to check role in this workspace
+      user = Ash.load!(socket.assigns.current_user, :workspace_users)
+
+      is_workspace_admin? =
+        Enum.any?(user.workspace_users, fn wu ->
+          to_string(wu.workspace_id) == workspace_id && wu.role == :admin
+        end)
+
+      if is_workspace_admin? do
         {:cont, socket}
       else
         {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
       end
-
-      # If user isn't logged in, redirect to sign in page
     else
       {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
     end
