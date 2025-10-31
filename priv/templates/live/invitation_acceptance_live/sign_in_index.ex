@@ -28,8 +28,9 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.SignInIndex do
     """
   end
 
-  def mount(%{"email" => encoded_email, "token" => raw_token}, _session, socket) do
+  def mount(%{"email" => encoded_email, "token" => raw_token} = params, _session, socket) do
     email = URI.decode(encoded_email)
+    socket = maybe_put_flash(socket, params["flash"])
 
     with {:ok, invitation} <- Accounts.get_pending_invitations_by_email(email),
          true <- verify_token(raw_token, invitation.token) do
@@ -80,4 +81,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.SignInIndex do
         {:noreply, assign(socket, :form, form)}
     end
   end
+
+  defp maybe_put_flash(socket, nil), do: socket
+  defp maybe_put_flash(socket, msg), do: put_flash(socket, :info, URI.decode(msg))
 end

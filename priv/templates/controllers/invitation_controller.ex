@@ -29,8 +29,17 @@ defmodule __MODULE_PREFIX__Web.InvitationController do
     end
   end
 
-  defp handle_invitation(conn, _invitation, nil, email, token) do
-    redirect_to_register(conn, email, token, "Please register to continue with your invitation.")
+  defp handle_invitation(conn, invitation, nil, email, token) do
+    # Check if user with this email already exists
+    case Accounts.get_by_email(invitation.email) do
+      {:ok, _user} ->
+        # User exists - redirect to sign-in
+        redirect_to_sign_in(conn, email, token, "Please sign in to accept your invitation.")
+
+      {:error, _} ->
+        # User doesn't exist - redirect to register
+        redirect_to_register(conn, email, token, "Please register to continue with your invitation.")
+    end
   end
 
   defp handle_invitation(
@@ -66,5 +75,10 @@ defmodule __MODULE_PREFIX__Web.InvitationController do
   defp redirect_to_register(conn, email, token, message) do
     conn
     |> redirect(to: ~p"/invitation/accept/register/#{email}/#{token}?flash=#{message}")
+  end
+
+  defp redirect_to_sign_in(conn, email, token, message) do
+    conn
+    |> redirect(to: ~p"/invitation/accept/sign-in/#{email}/#{token}?flash=#{message}")
   end
 end
