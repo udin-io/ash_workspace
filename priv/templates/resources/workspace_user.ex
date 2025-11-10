@@ -21,6 +21,7 @@ defmodule __MODULE_PREFIX__.Accounts.WorkspaceUser do
       description "Get workspace users by workspace ID."
       argument :workspace_id, :uuid, allow_nil?: false
       filter expr(workspace_id == ^arg(:workspace_id))
+      prepare build(load: [:user])
     end
   end
 
