@@ -22,9 +22,4 @@ defmodule __MODULE_PREFIX__.Accounts.Changes.CreateDefaultWorkspace do
         )
     end
   end
-
-  @impl true
-  def atomic(changeset, opts, context) do
-    {:ok, change(changeset, opts, context)}
-  end
 end
