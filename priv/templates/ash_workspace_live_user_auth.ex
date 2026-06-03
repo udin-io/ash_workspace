@@ -38,16 +38,17 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
   end
 
   def on_mount(:admin_only, _params, _session, socket) do
-    if socket.assigns[:current_user] do
-      if socket.assigns[:current_user].role == :admin do
-        {:cont, socket}
-      else
-        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
-      end
+    current_user = socket.assigns[:current_user]
 
-      # If user isn't logged in, redirect to sign in page
-    else
-      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
+    cond do
+      is_nil(current_user) ->
+        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
+
+      current_user.role == :admin ->
+        {:cont, socket}
+
+      true ->
+        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
     end
   end
 
