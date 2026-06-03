@@ -2,6 +2,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
   @moduledoc "Validates that no existing user or pending invitation uses the email"
 
   use Ash.Resource.Validation
+  require Ash.Query
 
   def validate(changeset, _opts, ctx) do
     email = Ash.Changeset.get_attribute(changeset, :email)
@@ -35,20 +36,14 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
   end
 
   defp email_exists_in_workspace?(email, workspace_id, actor) do
-    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id, actor: actor) do
-      {:ok, workspace_users} ->
-        Enum.any?(workspace_users, fn workspace_user ->
-          case Ash.load(workspace_user, :user, actor: actor) do
-            {:ok, %{user: user}} when not is_nil(user) ->
-              to_string(user.email) == to_string(email)
-
-            _ ->
-              false
-          end
-        end)
-
-      _ ->
-        false
+    __MODULE_PREFIX__.Accounts.User
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.Query.filter(exists(workspace_users, workspace_id == ^workspace_id))
+    |> Ash.read_one(actor: actor)
+    |> case do
+      {:ok, nil} -> false
+      {:ok, _user} -> true
+      _ -> false
     end
   end
 

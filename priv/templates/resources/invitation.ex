@@ -126,6 +126,10 @@ defmodule __MODULE_PREFIX__.Accounts.Invitation do
     timestamps()
   end
 
+  identities do
+    identity :unique_workspace_invitation, [:workspace_id, :email]
+  end
+
   relationships do
     belongs_to :workspace, __MODULE_PREFIX__.Accounts.Workspace do
       allow_nil? false
