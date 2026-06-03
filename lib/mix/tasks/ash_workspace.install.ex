@@ -358,6 +358,14 @@ if Code.ensure_loaded?(Igniter) do
     |> Ash.Resource.Igniter.add_new_attribute(user_module, :confirmed_at, """
     attribute :confirmed_at, :utc_datetime_usec
     """)
+    |> Ash.Resource.Igniter.add_new_attribute(user_module, :role, """
+    attribute :role, :atom do
+      default :user
+      constraints one_of: [:user, :admin]
+      allow_nil? false
+      public? true
+    end
+    """)
     # Add code interfaces
     |> add_code_interface(user_module)
     # Add workspace relationships
