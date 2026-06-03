@@ -567,6 +567,58 @@ if Code.ensure_loaded?(Igniter) do
       change AshAuthentication.GenerateTokenChange
     end
     """)
+    |> patch_register_with_password(user_module, domain_module)
+  end
+
+  # Patches an existing register_with_password action to add the workspace_name argument
+  # and CreateDefaultWorkspace change. This handles the case where register_with_password
+  # already existed before ash_workspace was installed, causing add_new_action to no-op.
+  defp patch_register_with_password(igniter, user_module, domain_module) do
+    change_module = Module.concat([domain_module, Changes, CreateDefaultWorkspace])
+
+    Igniter.Project.Module.find_and_update_module!(igniter, user_module, fn zipper ->
+      with {:ok, actions_zipper} <-
+             Igniter.Code.Function.move_to_function_call_in_current_scope(zipper, :actions, 1),
+           {:ok, actions_body} <- Igniter.Code.Common.move_to_do_block(actions_zipper),
+           {:ok, action_zipper} <-
+             Igniter.Code.Function.move_to_function_call_in_current_scope(
+               actions_body,
+               :create,
+               2,
+               &Igniter.Code.Function.argument_equals?(&1, 0, :register_with_password)
+             ),
+           {:ok, action_body} <- Igniter.Code.Common.move_to_do_block(action_zipper) do
+        already_patched =
+          case Igniter.Code.Function.move_to_function_call_in_current_scope(
+                 action_body,
+                 :change,
+                 1,
+                 &Igniter.Code.Function.argument_equals?(&1, 0, change_module)
+               ) do
+            {:ok, _} -> true
+            _ -> false
+          end
+
+        if already_patched do
+          {:ok, zipper}
+        else
+          updated =
+            Igniter.Code.Common.add_code(action_body, """
+            # NOTE: If you have other create auth actions (e.g. :register_with_magic_link),
+            # add the :workspace_name argument and CreateDefaultWorkspace change to those too.
+            argument :workspace_name, :string do
+              allow_nil? true
+            end
+
+            change #{inspect(change_module)}
+            """)
+
+          {:ok, updated}
+        end
+      else
+        _ -> {:ok, zipper}
+      end
+    end)
   end
 
   # Add policies for password authentication actions
@@ -579,6 +631,11 @@ if Code.ensure_loaded?(Igniter) do
            {:ok, zipper} <- Igniter.Code.Common.move_to_do_block(zipper) do
         # policies block exists, add inside it
         {:ok, Igniter.Code.Common.add_code(zipper, """
+        # A user can be read by anyone who shares a workspace with them
+        policy action(:read) do
+          authorize_if relates_to_actor_via([:workspaces, :users])
+        end
+
         # Password authentication policies
         policy action(:register_with_password) do
           authorize_if always()
@@ -608,6 +665,11 @@ if Code.ensure_loaded?(Igniter) do
             # Required for auth flows
             bypass AshAuthentication.Checks.AshAuthenticationInteraction do
               authorize_if always()
+            end
+
+            # A user can be read by anyone who shares a workspace with them
+            policy action(:read) do
+              authorize_if relates_to_actor_via([:workspaces, :users])
             end
 
             # Password authentication policies
@@ -693,17 +755,26 @@ if Code.ensure_loaded?(Igniter) do
     else
       case File.read(template_path) do
         {:ok, content} ->
-          # Replace placeholders
           processed_content =
             content
             |> String.replace("__MODULE_PREFIX__", module_prefix)
             |> String.replace("__OTP_APP__", to_string(otp_app))
             |> String.replace("__APP_NAME__", module_prefix)
 
-          Igniter.create_new_file(igniter, target_path, processed_content)
+          if File.exists?(target_path) do
+            Mix.shell().info("\n⚠️  File already exists: #{target_path}")
+
+            if Mix.shell().yes?("  Overwrite?") do
+              Igniter.create_new_file(igniter, target_path, processed_content, on_exists: :overwrite)
+            else
+              Mix.shell().info("  Skipping #{target_path}")
+              igniter
+            end
+          else
+            Igniter.create_new_file(igniter, target_path, processed_content)
+          end
 
         {:error, reason} ->
-          # Log error but continue
           Mix.shell().info("Skipping #{target_path}: #{inspect(reason)}")
           igniter
       end
