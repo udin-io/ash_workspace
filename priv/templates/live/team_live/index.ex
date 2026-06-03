@@ -203,8 +203,9 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   end
 
   defp setup_page_defaults(socket, workspace_id) do
-    members = setup_members(workspace_id, socket.assigns.current_user)
-    invitations = setup_pending_invitations(workspace_id)
+    actor = socket.assigns.current_user
+    members = setup_members(workspace_id, actor)
+    invitations = setup_pending_invitations(workspace_id, actor)
 
     assign(socket,
       page_title: "Team",
@@ -249,8 +250,8 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     end
   end
 
-  defp setup_pending_invitations(workspace_id) do
-    case __MODULE_PREFIX__.Accounts.list_all_pending_invitations(actor: socket.assigns.current_user) do
+  defp setup_pending_invitations(workspace_id, actor) do
+    case __MODULE_PREFIX__.Accounts.list_all_pending_invitations(actor: actor) do
       {:ok, invitations} ->
         Enum.filter(invitations, fn inv -> to_string(inv.workspace_id) == workspace_id end)
 
