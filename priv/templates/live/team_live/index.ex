@@ -203,7 +203,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   end
 
   defp setup_page_defaults(socket, workspace_id) do
-    members = setup_members(workspace_id)
+    members = setup_members(workspace_id, socket.assigns.current_user)
     invitations = setup_pending_invitations(workspace_id)
 
     assign(socket,
@@ -227,21 +227,35 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     )
   end
 
-  defp setup_members(workspace_id) do
-    {:ok, workspace_users} = __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id)
+  defp setup_members(workspace_id, actor) do
+    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
+      {:ok, workspace_users} ->
+        workspace_users
+        |> Enum.map(fn workspace_user ->
+          case Ash.load(workspace_user, :user, actor: actor) do
+            {:ok, loaded} when not is_nil(loaded.user) ->
+              loaded.user
+              |> Map.put(:workspace_role, loaded.role)
+              |> Map.put(:workspace_user_id, loaded.id)
 
-    Enum.map(workspace_users, fn workspace_user ->
-      workspace_user = Ash.load!(workspace_user, :user)
-      user = workspace_user.user
+            _ ->
+              nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
 
-      user
-      |> Map.put(:workspace_role, workspace_user.role)
-      |> Map.put(:workspace_user_id, workspace_user.id)
-    end)
+      {:error, _} ->
+        []
+    end
   end
 
   defp setup_pending_invitations(workspace_id) do
-    {:ok, invitations} = __MODULE_PREFIX__.Accounts.list_all_pending_invitations()
-    Enum.filter(invitations, fn inv -> to_string(inv.workspace_id) == workspace_id end)
+    case __MODULE_PREFIX__.Accounts.list_all_pending_invitations() do
+      {:ok, invitations} ->
+        Enum.filter(invitations, fn inv -> to_string(inv.workspace_id) == workspace_id end)
+
+      {:error, _} ->
+        []
+    end
   end
 end

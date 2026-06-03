@@ -3,7 +3,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
 
   use Ash.Resource.Validation
 
-  def validate(changeset, _opts, _ctx) do
+  def validate(changeset, _opts, ctx) do
     email = Ash.Changeset.get_attribute(changeset, :email)
     workspace_id = Ash.Changeset.get_attribute(changeset, :workspace_id)
 
@@ -11,7 +11,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
       is_nil(email) or is_nil(workspace_id) ->
         :ok
 
-      email_exists_in_workspace?(email, workspace_id) ->
+      email_exists_in_workspace?(email, workspace_id, ctx.actor) ->
         {:error,
          [
            %Ash.Error.Changes.InvalidAttribute{
@@ -34,12 +34,18 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
     end
   end
 
-  defp email_exists_in_workspace?(email, workspace_id) do
+  defp email_exists_in_workspace?(email, workspace_id, actor) do
     case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
       {:ok, workspace_users} ->
-        workspace_users
-        |> Enum.map(&Ash.load!(&1, :user))
-        |> Enum.any?(fn %{user: user} -> to_string(user.email) == to_string(email) end)
+        Enum.any?(workspace_users, fn workspace_user ->
+          case Ash.load(workspace_user, :user, actor: actor) do
+            {:ok, %{user: user}} when not is_nil(user) ->
+              to_string(user.email) == to_string(email)
+
+            _ ->
+              false
+          end
+        end)
 
       _ ->
         false

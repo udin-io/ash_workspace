@@ -31,7 +31,7 @@ defmodule __MODULE_PREFIX__Web.InvitationController do
 
   defp handle_invitation(conn, invitation, nil, email, token) do
     # Check if user with this email already exists
-    case Accounts.get_by_email(invitation.email) do
+    case __MODULE_PREFIX__.Accounts.User.get_by_email(invitation.email) do
       {:ok, _user} ->
         # User exists - redirect to sign-in
         redirect_to_sign_in(conn, email, token, "Please sign in to accept your invitation.")
