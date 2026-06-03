@@ -147,10 +147,10 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.Components do
     Bcrypt.verify_pass(raw_token, hashed_token)
   end
 
-  def assign_to_workspace(user_id, invitation) do
-    __MODULE_PREFIX__.Accounts.accept_invitation(invitation.id)
+  def assign_to_workspace(user, invitation) do
+    __MODULE_PREFIX__.Accounts.accept_invitation(invitation.id, actor: user)
 
-    case __MODULE_PREFIX__.Accounts.create_workspace_user(invitation.role, invitation.workspace_id, user_id) do
+    case __MODULE_PREFIX__.Accounts.create_workspace_user(invitation.role, invitation.workspace_id, user.id, actor: user) do
       {:ok, _workspace} -> {:ok, "You have been successfully added to the workspace."}
       {:error, _} -> {:error, "Failed to add you to the workspace."}
     end

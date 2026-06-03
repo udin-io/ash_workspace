@@ -57,7 +57,7 @@ defmodule __MODULE_PREFIX__Web.InvitationAcceptanceAuthLive.RegisterIndex do
   def handle_event("submit", %{"form" => form_params}, socket) do
     case AshPhoenix.Form.submit(socket.assigns.form, params: form_params) do
       {:ok, user} ->
-        result = assign_to_workspace(user.id, socket.assigns.invitation)
+        result = assign_to_workspace(user, socket.assigns.invitation)
 
         {:noreply,
          socket

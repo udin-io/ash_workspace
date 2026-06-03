@@ -50,7 +50,7 @@ defmodule __MODULE_PREFIX__Web.InvitationController do
          _token
        )
        when user_email == invitation_email do
-    case Components.assign_to_workspace(user.id, invitation) do
+    case Components.assign_to_workspace(user, invitation) do
       {:ok, msg} -> redirect_to_landing(conn, :info, msg)
       {:error, reason} -> redirect_to_landing(conn, :error, reason)
     end

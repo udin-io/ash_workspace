@@ -2,11 +2,35 @@ defmodule __MODULE_PREFIX__.Accounts.Workspace do
   use Ash.Resource,
     otp_app: :__OTP_APP__,
     domain: __MODULE_PREFIX__.Accounts,
+    authorizers: [Ash.Policy.Authorizer],
     data_layer: AshPostgres.DataLayer
 
   postgres do
     table "workspaces"
     repo __MODULE_PREFIX__.Repo
+  end
+
+  policies do
+    # Workspace creation happens during registration with no actor yet (user is being created).
+    # Safety relies on the domain not exposing a direct create_workspace action publicly.
+    policy action(:create) do
+      authorize_if always()
+    end
+
+    # Only members of this workspace can read it
+    policy action(:read) do
+      authorize_if relates_to_actor_via([:workspace_users, :user])
+    end
+
+    # Only workspace admins can rename the workspace
+    policy action(:update) do
+      authorize_if expr(exists(workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
+
+    # Only workspace admins can delete the workspace
+    policy action(:destroy) do
+      authorize_if expr(exists(workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
   end
 
   actions do

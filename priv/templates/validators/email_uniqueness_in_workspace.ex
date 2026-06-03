@@ -35,7 +35,7 @@ defmodule __MODULE_PREFIX__.Accounts.Validators.EmailUniquenessInWorkspace do
   end
 
   defp email_exists_in_workspace?(email, workspace_id, actor) do
-    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
+    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id, actor: actor) do
       {:ok, workspace_users} ->
         Enum.any?(workspace_users, fn workspace_user ->
           case Ash.load(workspace_user, :user, actor: actor) do

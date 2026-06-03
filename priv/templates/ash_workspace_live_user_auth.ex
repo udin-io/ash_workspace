@@ -56,7 +56,7 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
 
     if socket.assigns[:current_user] && workspace_id do
       # Load user's workspace_users to check role in this workspace
-      user = Ash.load!(socket.assigns.current_user, :workspace_users)
+      user = Ash.load!(socket.assigns.current_user, [:workspace_users], actor: socket.assigns.current_user)
 
       is_workspace_admin? =
         Enum.any?(user.workspace_users, fn wu ->

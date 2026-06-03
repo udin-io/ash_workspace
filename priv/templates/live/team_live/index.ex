@@ -120,7 +120,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     id = socket.assigns.remove_member_id
     workspace_id = socket.assigns.current_workspace_id
 
-    case Accounts.delete_workspace_user(id) do
+    case Accounts.delete_workspace_user(id, actor: socket.assigns.current_user) do
       :ok ->
         {:noreply,
          put_flash(socket, :info, "Member removed successfully.") |> setup_page_defaults(workspace_id)}
@@ -143,7 +143,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     user = socket.assigns.current_user
     workspace_id = socket.assigns.current_workspace_id
 
-    case __MODULE_PREFIX__.Accounts.create_invitation(email, String.to_atom(role), workspace_id, user.id) do
+    case __MODULE_PREFIX__.Accounts.create_invitation(email, String.to_atom(role), workspace_id, user.id, actor: user) do
       {:ok, _invitation} ->
         {:noreply,
          socket
@@ -173,7 +173,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   def handle_event("resend_invite", %{"id" => id}, socket) do
     workspace_id = socket.assigns.current_workspace_id
 
-    case __MODULE_PREFIX__.Accounts.resend_invitation(id) do
+    case __MODULE_PREFIX__.Accounts.resend_invitation(id, actor: socket.assigns.current_user) do
       {:ok, _} ->
         {:noreply, put_flash(socket, :info, "Invitation resent.") |> setup_page_defaults(workspace_id)}
 
@@ -186,7 +186,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     id = socket.assigns.revoke_invite_id
     workspace_id = socket.assigns.current_workspace_id
 
-    case __MODULE_PREFIX__.Accounts.revoke_invitation(id) do
+    case __MODULE_PREFIX__.Accounts.revoke_invitation(id, actor: socket.assigns.current_user) do
       {:ok, _} ->
         {:noreply,
          socket
@@ -203,8 +203,9 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   end
 
   defp setup_page_defaults(socket, workspace_id) do
-    members = setup_members(workspace_id, socket.assigns.current_user)
-    invitations = setup_pending_invitations(workspace_id)
+    actor = socket.assigns.current_user
+    members = setup_members(workspace_id, actor)
+    invitations = setup_pending_invitations(workspace_id, actor)
 
     assign(socket,
       page_title: "Team",
@@ -228,7 +229,7 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
   end
 
   defp setup_members(workspace_id, actor) do
-    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id) do
+    case __MODULE_PREFIX__.Accounts.get_workspace_users_by_workspace_id(workspace_id, actor: actor) do
       {:ok, workspace_users} ->
         workspace_users
         |> Enum.map(fn workspace_user ->
@@ -249,8 +250,8 @@ defmodule __MODULE_PREFIX__Web.TeamLive.Index do
     end
   end
 
-  defp setup_pending_invitations(workspace_id) do
-    case __MODULE_PREFIX__.Accounts.list_all_pending_invitations() do
+  defp setup_pending_invitations(workspace_id, actor) do
+    case __MODULE_PREFIX__.Accounts.list_all_pending_invitations(actor: actor) do
       {:ok, invitations} ->
         Enum.filter(invitations, fn inv -> to_string(inv.workspace_id) == workspace_id end)
 

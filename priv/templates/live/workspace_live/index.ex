@@ -38,8 +38,7 @@ defmodule __MODULE_PREFIX__Web.WorkspaceLive.Index do
   end
 
   defp load_user_workspaces(user) do
-    # Load user with workspace_users and their workspaces
-    user = Ash.load!(user, workspace_users: [:workspace])
+    user = Ash.load!(user, [workspace_users: [:workspace]], actor: user)
 
     # Transform into a list with workspace info and user's role
     Enum.map(user.workspace_users, fn wu ->
