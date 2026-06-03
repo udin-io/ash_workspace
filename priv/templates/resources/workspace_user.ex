@@ -2,11 +2,34 @@ defmodule __MODULE_PREFIX__.Accounts.WorkspaceUser do
   use Ash.Resource,
     otp_app: :__OTP_APP__,
     domain: __MODULE_PREFIX__.Accounts,
+    authorizers: [Ash.Policy.Authorizer],
     data_layer: AshPostgres.DataLayer
 
   postgres do
     table "workspaces_users"
     repo __MODULE_PREFIX__.Repo
+  end
+
+  policies do
+    # Any workspace member can read membership records for their workspace
+    policy action_type(:read) do
+      authorize_if relates_to_actor_via([:workspace, :workspace_users, :user])
+    end
+
+    # Users can only add themselves — covers registration and invitation acceptance
+    policy action(:create) do
+      authorize_if expr(user_id == ^actor(:id))
+    end
+
+    # Only workspace admins can change member roles
+    policy action(:update) do
+      authorize_if expr(exists(workspace.workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
+
+    # Only workspace admins can remove members
+    policy action(:destroy) do
+      authorize_if expr(exists(workspace.workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
   end
 
   actions do

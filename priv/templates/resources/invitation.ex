@@ -64,15 +64,33 @@ defmodule __MODULE_PREFIX__.Accounts.Invitation do
   end
 
   policies do
-    policy action([
-             :create,
-             :get_pending_by_email,
-             :get_all_pending_invitations,
-             :resend_invitation,
-             :accept_invitation,
-             :revoke_invitation,
-             :read
-           ]) do
+    # Only workspace admins can send invitations
+    policy action(:create) do
+      authorize_if expr(exists(workspace.workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
+
+    # Only workspace admins can resend invitations
+    policy action(:resend_invitation) do
+      authorize_if expr(exists(workspace.workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
+
+    # Only workspace admins can revoke invitations
+    policy action(:revoke_invitation) do
+      authorize_if expr(exists(workspace.workspace_users, user_id == ^actor(:id) and role == :admin))
+    end
+
+    # Only the invited person (matched by email) can accept their own invitation
+    policy action(:accept_invitation) do
+      authorize_if expr(email == ^actor(:email))
+    end
+
+    # Workspace members can see invitations for their workspace
+    policy action([:read, :get_all_pending_invitations]) do
+      authorize_if relates_to_actor_via([:workspace, :workspace_users, :user])
+    end
+
+    # Called without an actor during the invitation link flow (before the user is signed in)
+    policy action(:get_pending_by_email) do
       authorize_if always()
     end
   end
