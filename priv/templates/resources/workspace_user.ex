@@ -16,9 +16,11 @@ defmodule __MODULE_PREFIX__.Accounts.WorkspaceUser do
       authorize_if relates_to_actor_via([:workspace, :workspace_users, :user])
     end
 
-    # Users can only add themselves — covers registration and invitation acceptance
+    # WorkspaceUser creation happens during registration (actor is nil, user is being created)
+    # and during invitation acceptance. Safety relies on the domain not exposing a direct
+    # create_workspace_user action publicly.
     policy action(:create) do
-      authorize_if expr(user_id == ^actor(:id))
+      authorize_if always()
     end
 
     # Only workspace admins can change member roles

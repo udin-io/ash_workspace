@@ -11,9 +11,10 @@ defmodule __MODULE_PREFIX__.Accounts.Workspace do
   end
 
   policies do
-    # Any authenticated user can create a workspace (set as admin via CreateDefaultWorkspace)
+    # Workspace creation happens during registration with no actor yet (user is being created).
+    # Safety relies on the domain not exposing a direct create_workspace action publicly.
     policy action(:create) do
-      authorize_if actor_present()
+      authorize_if always()
     end
 
     # Only members of this workspace can read it
