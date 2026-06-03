@@ -9,9 +9,9 @@ defmodule __MODULE_PREFIX__.Accounts.Invitation.Senders.SendInvitationEmail do
   alias __MODULE_PREFIX__.Mailer
 
   @impl true
-  def send(invitation, token, _context) do
+  def send(invitation, token, context) do
     url = url(~p"/invitation/accept/#{invitation.email}/#{token}")
-    workspace_name = get_workspace_name(invitation)
+    workspace_name = get_workspace_name(invitation, context)
 
     new()
     |> from({"__OTP_APP__", "noreply@__OTP_APP__.example.com"})
@@ -60,10 +60,12 @@ defmodule __MODULE_PREFIX__.Accounts.Invitation.Senders.SendInvitationEmail do
     {:ok, result}
   end
 
-  defp get_workspace_name(invitation) do
-    case __MODULE_PREFIX__.Accounts.get_workspace_by_id(invitation.workspace_id) do
+  defp get_workspace_name(invitation, context) do
+    actor = context[:private][:actor]
+
+    case __MODULE_PREFIX__.Accounts.get_workspace_by_id(invitation.workspace_id, actor: actor) do
       {:ok, workspace} when is_map(workspace) -> workspace.name
-      {:ok, nil} -> "Workspace"
+      _ -> "Workspace"
     end
   end
 end
