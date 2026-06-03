@@ -63,6 +63,10 @@ defmodule __MODULE_PREFIX__.Accounts.WorkspaceUser do
     timestamps()
   end
 
+  identities do
+    identity :unique_workspace_member, [:workspace_id, :user_id]
+  end
+
   relationships do
     belongs_to :workspace, __MODULE_PREFIX__.Accounts.Workspace do
       allow_nil? false

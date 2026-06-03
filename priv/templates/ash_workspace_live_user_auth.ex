@@ -5,6 +5,7 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
 
   import Phoenix.Component
   use __MODULE_PREFIX__Web, :verified_routes
+  require Ash.Query
 
   # This is used for nested liveviews to fetch the current user.
   # To use, place the following at the top of that liveview:
@@ -53,24 +54,26 @@ defmodule __MODULE_PREFIX__Web.AshWorkspaceLiveUserAuth do
   end
 
   def on_mount(:workspace_admin, params, _session, socket) do
+    current_user = socket.assigns[:current_user]
     workspace_id = Map.get(params, "workspace_id")
 
-    if socket.assigns[:current_user] && workspace_id do
-      # Load user's workspace_users to check role in this workspace
-      user = Ash.load!(socket.assigns.current_user, [:workspace_users], actor: socket.assigns.current_user)
+    cond do
+      is_nil(current_user) ->
+        {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
 
-      is_workspace_admin? =
-        Enum.any?(user.workspace_users, fn wu ->
-          to_string(wu.workspace_id) == workspace_id && wu.role == :admin
-        end)
-
-      if is_workspace_admin? do
-        {:cont, socket}
-      else
+      is_nil(workspace_id) ->
         {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
-      end
-    else
-      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
+
+      true ->
+        current_user_id = current_user.id
+
+        __MODULE_PREFIX__.Accounts.WorkspaceUser
+        |> Ash.Query.filter(workspace_id == ^workspace_id and user_id == ^current_user_id)
+        |> Ash.read_one(actor: current_user)
+        |> case do
+          {:ok, %{role: :admin}} -> {:cont, socket}
+          _ -> {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
+        end
     end
   end
 end
